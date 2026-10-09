@@ -1,8 +1,10 @@
 // State management untuk semua yang berkaitan dengan transaksi.
 
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/providers/database_providers.dart';
+import '../repositories/transaction_repository.dart';
 import '../services/transaction_service.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -29,10 +31,17 @@ final currentDeviceIdProvider = Provider<String>((ref) {
 // ─────────────────────────────────────────────────────────────
 // TransactionService provider
 // ─────────────────────────────────────────────────────────────
+
+final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
+  return DriftTransactionRepository(
+    transactions: ref.watch(transactionDaoProvider),
+    categories: ref.watch(categoryDaoProvider),
+  );
+});
  
 final transactionServiceProvider = Provider<TransactionService>((ref) {
   return TransactionService(
-    dao:      ref.watch(transactionDaoProvider),
+    repository: ref.watch(transactionRepositoryProvider),
     userId:   ref.watch(currentUserIdProvider),
     deviceId: ref.watch(currentDeviceIdProvider),
   );
@@ -96,20 +105,20 @@ final monthlyTransactionsProvider =
   // Watch syncTick — kalau naik, provider ini auto re-fetch
   ref.watch(syncTickProvider);
  
-  final dao    = ref.watch(transactionDaoProvider);
+  final repository = ref.watch(transactionRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
   final month  = ref.watch(selectedMonthProvider);
-  return dao.getByMonth(userId, month.year, month.month);
+  return repository.getByMonth(userId, month.year, month.month);
 });
  
 final monthlyCategorySummaryProvider =
     FutureProvider.autoDispose<List<CategorySummary>>((ref) async {
   ref.watch(syncTickProvider);
  
-  final dao    = ref.watch(transactionDaoProvider);
+  final repository = ref.watch(transactionRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
   final month  = ref.watch(selectedMonthProvider);
-  return dao.getMonthlyCategorySummary(userId, month.year, month.month);
+  return repository.getMonthlyCategorySummary(userId, month.year, month.month);
 });
  
 final monthlyTotalProvider =
@@ -125,18 +134,50 @@ final categoriesProvider =
     FutureProvider.autoDispose<List<Category>>((ref) async {
   ref.watch(syncTickProvider);
  
-  final dao    = ref.watch(categoryDaoProvider);
+  final repository = ref.watch(transactionRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
-  return dao.getAll(userId);
+  return repository.getCategories(userId);
 });
  
 final transactionItemsProvider = FutureProvider.autoDispose
     .family<List<TransactionItem>, String>((ref, txId) async {
   ref.watch(syncTickProvider);
  
-  final dao = ref.watch(transactionDaoProvider);
-  return dao.getItemsByTxId(txId);
+  final repository = ref.watch(transactionRepositoryProvider);
+  return repository.getItemsByTxId(txId);
 });
+
+class TransactionSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> submit(TransactionInput input, {String? editTxId}) async {
+    if (state.isLoading) return false;
+
+    state = const AsyncLoading();
+    try {
+      final service = ref.read(transactionServiceProvider);
+      if (editTxId == null) {
+        await service.saveTransaction(input);
+      } else {
+        await service.updateTransaction(editTxId, input);
+      }
+
+      ref.invalidate(monthlyTransactionsProvider);
+      ref.invalidate(monthlyCategorySummaryProvider);
+      ref.invalidate(monthlyTotalProvider);
+      state = const AsyncData<void>(null);
+      return true;
+    } catch (error, stackTrace) {
+      state = AsyncError<void>(error, stackTrace);
+      return false;
+    }
+  }
+}
+
+final transactionSubmitProvider =
+    AsyncNotifierProvider<TransactionSubmitNotifier, void>(
+        TransactionSubmitNotifier.new);
  
 // ─────────────────────────────────────────────────────────────
 // State form tambah/edit transaksi — tidak perlu watch syncTick

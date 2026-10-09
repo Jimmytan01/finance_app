@@ -12,24 +12,23 @@
 // syncAwareTransactionServiceProvider. Semua pemanggil di UI
 // tidak perlu berubah sama sekali karena interface-nya sama.
 
-import 'dart:convert';
-import 'package:drift/drift.dart';
 import '../database/app_database.dart';
 import '../sync/sync_service.dart';
+import '../../features/transactions/repositories/transaction_repository.dart';
 import '../../features/transactions/services/transaction_service.dart';
  
 class SyncAwareTransactionService extends TransactionService {
   final SyncService?   _sync;
-  final TransactionDao _txDao;
+  final TransactionRepository _repository;
  
   SyncAwareTransactionService({
-    required TransactionDao dao,
+    required TransactionRepository repository,
     required String         userId,
     required String         deviceId,
     SyncService?            syncService,
   })  : _sync  = syncService,
-        _txDao  = dao,
-        super(dao: dao, userId: userId, deviceId: deviceId);
+        _repository = repository,
+        super(repository: repository, userId: userId, deviceId: deviceId);
  
   @override
   Future<String> saveTransaction(TransactionInput input) async {
@@ -60,7 +59,7 @@ class SyncAwareTransactionService extends TransactionService {
  
     // Ambil items dari DB setelah parent selesai insert —
     // supaya UUID yang di-push ke Supabase identik dengan yang ada di lokal
-    final savedItems = await _txDao.getItemsByTxId(txId);
+    final savedItems = await _repository.getItemsByTxId(txId);
  
     for (final item in savedItems) {
       await _sync!.enqueue(
@@ -80,7 +79,7 @@ class SyncAwareTransactionService extends TransactionService {
     // FIX: ambil item LAMA dulu sebelum super dipanggil.
     // Setelah super.updateTransaction(), item lama sudah terhapus dari lokal
     // dan tidak bisa diambil lagi — makanya harus diambil sekarang.
-    final oldItems = await _txDao.getItemsByTxId(txId);
+    final oldItems = await _repository.getItemsByTxId(txId);
  
     // Super: hapus item lama dari SQLite lokal, insert item baru dengan UUID baru
     await super.updateTransaction(txId, input);
@@ -120,7 +119,7 @@ class SyncAwareTransactionService extends TransactionService {
  
     // Ambil item BARU dari DB (UUID sudah final setelah super selesai)
     // lalu enqueue INSERT ke Supabase
-    final newItems = await _txDao.getItemsByTxId(txId);
+    final newItems = await _repository.getItemsByTxId(txId);
     for (final item in newItems) {
       await _sync!.enqueue(
         tableName: 'transaction_items',
@@ -135,7 +134,7 @@ class SyncAwareTransactionService extends TransactionService {
   @override
   Future<void> deleteTransaction(String txId) async {
     // Ambil items sebelum dihapus — perlu ID-nya untuk enqueue delete
-    final itemsToDelete = await _txDao.getItemsByTxId(txId);
+    final itemsToDelete = await _repository.getItemsByTxId(txId);
  
     await super.deleteTransaction(txId);
  

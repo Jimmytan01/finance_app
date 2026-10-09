@@ -6,6 +6,7 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
+import '../repositories/transaction_repository.dart';
 
 const _uuid = Uuid();
 
@@ -99,7 +100,7 @@ class ValidationResult {
  
 // ── Service ───────────────────────────────────────────────
 class TransactionService {
-  final TransactionDao _dao;
+  final TransactionRepository _repository;
   final String         _userId;
   final String         _deviceId;
  
@@ -108,10 +109,10 @@ class TransactionService {
   String get userId   => _userId;
  
   TransactionService({
-    required TransactionDao dao,
+    required TransactionRepository repository,
     required String         userId,
     required String         deviceId,
-  })  : _dao     = dao,
+  })  : _repository = repository,
         _userId  = userId,
         _deviceId = deviceId;
  
@@ -177,7 +178,7 @@ class TransactionService {
       updatedAt:      Value(DateTime.now()),
     )).toList();
  
-    await _dao.insertFull(header: header, items: items);
+    await _repository.insertFull(header: header, items: items);
     return txId;
   }
  
@@ -185,7 +186,7 @@ class TransactionService {
     final validation = validate(input);
     if (!validation.isValid) throw Exception(validation.errorMessage);
  
-    await _dao.deleteItemsByTxId(txId);
+    await _repository.deleteItemsByTxId(txId);
  
     final items = input.items.map((i) => TransactionItemsCompanion(
       id:             Value(_uuid.v4()),
@@ -201,7 +202,7 @@ class TransactionService {
       updatedAt:      Value(DateTime.now()),
     )).toList();
  
-    await _dao.updateHeaderAndItems(
+    await _repository.updateHeaderAndItems(
       txId:   txId,
       header: TransactionsCompanion(
         placeName:   Value(input.placeName),
@@ -215,7 +216,7 @@ class TransactionService {
   }
  
   Future<void> deleteTransaction(String txId) =>
-      _dao.deleteTransaction(txId);
+      _repository.deleteTransaction(txId);
  
   // ── Format helpers ───────────────────────────────────────
   static String formatCurrency(double amount) {

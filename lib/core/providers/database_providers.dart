@@ -32,15 +32,14 @@ final syncQueueDaoProvider = Provider<SyncQueueDao>((ref) {
   return SyncQueueDao(ref.watch(appDatabaseProvider));
 });
 
-
 final syncAwareTransactionServiceProvider = Provider<TransactionService>((ref) {
-    final dao      = ref.watch(transactionDaoProvider);
+    final repository = ref.watch(transactionRepositoryProvider);
     final userId   = ref.watch(currentUserIdProvider);
     final deviceId = ref.watch(currentDeviceIdProvider);
     final sync     = ref.watch(syncNotifierProvider).valueOrNull;
 
     return SyncAwareTransactionService(
-      dao:         dao,
+      repository: repository,
       userId:      userId,
       deviceId:    deviceId,
       syncService: sync,

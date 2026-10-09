@@ -8,16 +8,25 @@ import '../../../core/database/app_database.dart';
 import '../providers/transaction_providers.dart';
 import '../services/transaction_service.dart';
 
-class AddTransactionScreen extends ConsumerWidget {
+class AddTransactionScreen extends ConsumerStatefulWidget {
   final String? editTxId;
   const AddTransactionScreen({super.key, this.editTxId});
- 
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AddTransactionScreen> createState() =>
+      _AddTransactionScreenState();
+}
+
+class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  Widget build(BuildContext context) {
     final input           = ref.watch(addTransactionProvider);
     final notifier        = ref.read(addTransactionProvider.notifier);
     final categoriesAsync = ref.watch(categoriesProvider);
-    final isEdit          = editTxId != null;
+    final submitState     = ref.watch(transactionSubmitProvider);
+    final isEdit          = widget.editTxId != null;
  
     return Scaffold(
       appBar: AppBar(
@@ -26,13 +35,30 @@ class AddTransactionScreen extends ConsumerWidget {
       ),
       body: categoriesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:   (e, _) => Center(child: Text('Error: $e')),
-        data:    (categories) => _FormWithSaveButton(
-          input:      input,
-          notifier:   notifier,
-          categories: categories,
-          isEdit:     isEdit,
-          editTxId:   editTxId,
+        error:   (_, __) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Gagal memuat kategori'),
+              TextButton.icon(
+                onPressed: () => ref.invalidate(categoriesProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Coba lagi'),
+              ),
+            ],
+          ),
+        ),
+        data:    (categories) => Form(
+          key: _formKey,
+          child: _FormWithSaveButton(
+            input:       input,
+            notifier:    notifier,
+            categories:  categories,
+            isEdit:      isEdit,
+            editTxId:    widget.editTxId,
+            formKey:     _formKey,
+            submitState: submitState,
+          ),
         ),
       ),
     );
@@ -49,6 +75,8 @@ class _FormWithSaveButton extends ConsumerWidget {
   final List<Category>         categories;
   final bool                   isEdit;
   final String?                editTxId;
+  final GlobalKey<FormState>   formKey;
+  final AsyncValue<void>       submitState;
  
   const _FormWithSaveButton({
     required this.input,
@@ -56,6 +84,8 @@ class _FormWithSaveButton extends ConsumerWidget {
     required this.categories,
     required this.isEdit,
     required this.editTxId,
+    required this.formKey,
+    required this.submitState,
   });
  
   @override
@@ -113,7 +143,12 @@ class _FormWithSaveButton extends ConsumerWidget {
           ),
         ),
         _StickyBottomBar(
-            input: input, isEdit: isEdit, editTxId: editTxId),
+          input:       input,
+          isEdit:      isEdit,
+          editTxId:    editTxId,
+          formKey:     formKey,
+          submitState: submitState,
+        ),
       ],
     );
   }
@@ -127,13 +162,20 @@ class _StickyBottomBar extends ConsumerWidget {
   final TransactionInput input;
   final bool             isEdit;
   final String?          editTxId;
+  final GlobalKey<FormState> formKey;
+  final AsyncValue<void> submitState;
   const _StickyBottomBar(
-      {required this.input, required this.isEdit, required this.editTxId});
+      {required this.input,
+      required this.isEdit,
+      required this.editTxId,
+      required this.formKey,
+      required this.submitState});
  
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs      = Theme.of(context).colorScheme;
     final hasItems = input.items.any((i) => i.unitPrice > 0);
+    final isSubmitting = submitState.isLoading;
  
     return Container(
       decoration: BoxDecoration(
@@ -171,15 +213,24 @@ class _StickyBottomBar extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           FilledButton.icon(
-            onPressed: hasItems ? () => _save(context, ref) : null,
-            icon:  Icon(
-                isEdit ? Icons.check_circle_outline : Icons.save_outlined,
-                size: 20),
-            label: Text(
-              isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi',
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w600),
-            ),
+            onPressed: hasItems && !isSubmitting
+                ? () => _save(context, ref)
+                : null,
+            icon: isSubmitting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : Icon(
+                    isEdit ? Icons.check_circle_outline : Icons.save_outlined,
+                    size: 20),
+            label: Text(isSubmitting
+                ? 'Menyimpan...'
+                : isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi',
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600)),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
               shape:       RoundedRectangleBorder(
@@ -204,25 +255,21 @@ class _StickyBottomBar extends ConsumerWidget {
   }
  
   Future<void> _save(BuildContext context, WidgetRef ref) async {
-    final service = ref.read(transactionServiceProvider);
+    if (!(formKey.currentState?.validate() ?? false)) return;
+
     final input   = ref.read(addTransactionProvider);
- 
-    try {
-      if (isEdit && editTxId != null) {
-        await service.updateTransaction(editTxId!, input);
-      } else {
-        await service.saveTransaction(input);
-      }
- 
-      ref.invalidate(monthlyTransactionsProvider);
-      ref.invalidate(monthlyCategorySummaryProvider);
-      ref.invalidate(monthlyTotalProvider);
- 
+    final saved = await ref.read(transactionSubmitProvider.notifier).submit(
+          input,
+          editTxId: isEdit ? editTxId : null,
+        );
+
+    if (saved) {
       if (context.mounted) Navigator.pop(context);
-    } catch (e) {
-      if (context.mounted) {
+    } else if (context.mounted) {
+      final error = ref.read(transactionSubmitProvider).error;
+      if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:         Text(e.toString().replaceFirst('Exception: ', '')),
+          content:         Text(error.toString().replaceFirst('Exception: ', '')),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior:        SnackBarBehavior.floating,
         ));
@@ -430,6 +477,9 @@ class _ItemCardState extends State<_ItemCard> {
             TextFormField(
               controller:         _nameCtrl,
               onChanged:          (_) => _emitBasic(),
+              validator:          (value) => value?.trim().isNotEmpty == true
+                  ? null
+                  : 'Nama item wajib diisi.',
               decoration:         _inputDec(context, 'Nama barang / jasa *'),
               textCapitalization: TextCapitalization.words,
             ),
@@ -504,6 +554,12 @@ class _ItemCardState extends State<_ItemCard> {
                   child: TextFormField(
                     controller:      _priceCtrl,
                     onChanged:       (_) => _emitBasic(),
+                    validator:       (value) {
+                      final price = double.tryParse(value ?? '');
+                      return price != null && price > 0
+                          ? null
+                          : 'Harga harus lebih dari 0.';
+                    },
                     keyboardType:    TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly
@@ -518,6 +574,12 @@ class _ItemCardState extends State<_ItemCard> {
                   child: TextFormField(
                     controller:   _qtyCtrl,
                     onChanged:    (_) => _emitBasic(),
+                    validator:    (value) {
+                      final quantity = double.tryParse(value ?? '');
+                      return quantity != null && quantity > 0
+                          ? null
+                          : 'Jumlah harus lebih dari 0.';
+                    },
                     keyboardType: const TextInputType.numberWithOptions(
                         decimal: true),
                     inputFormatters: [

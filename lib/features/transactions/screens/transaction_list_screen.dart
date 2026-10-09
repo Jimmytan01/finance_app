@@ -48,7 +48,20 @@ class TransactionListScreen extends ConsumerWidget {
             Expanded(
               child: txAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error:   (e, _) => Center(child: Text('Error: $e')),
+                error:   (_, __) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Gagal memuat transaksi'),
+                      TextButton.icon(
+                        onPressed: () =>
+                            ref.invalidate(monthlyTransactionsProvider),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Coba lagi'),
+                      ),
+                    ],
+                  ),
+                ),
                 data:    (txs) => txs.isEmpty
                     ? const _EmptyState()
                     : _TransactionList(transactions: txs),
