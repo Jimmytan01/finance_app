@@ -45,6 +45,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  http: ^1.6.0
   build_runner: ^2.5.4
   riverpod_generator: ^2.4.0
   json_serializable: ^6.8.0

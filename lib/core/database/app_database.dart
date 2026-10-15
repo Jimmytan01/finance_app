@@ -210,6 +210,9 @@ class SyncQueue extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  /// Creates an in-memory database for unit tests.
+  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
+
   @override
   int get schemaVersion => 1;
 
