@@ -13,6 +13,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
+import '../../budget/providers/budget_providers.dart';
+import '../../budget/screens/budget_screen.dart';
 import '../../../features/transactions/providers/transaction_providers.dart';
 import '../../../features/transactions/services/transaction_service.dart';
 import '../providers/report_providers.dart';
@@ -23,8 +25,8 @@ class ReportScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final month       = ref.watch(selectedMonthProvider);
-    final statsAsync  = ref.watch(monthlyStatsProvider);
+    final month = ref.watch(selectedMonthProvider);
+    final statsAsync = ref.watch(monthlyStatsProvider);
     final totalsAsync = ref.watch(monthlyTotalsProvider);
     final summaryAsync = ref.watch(monthlyCategorySummaryProvider);
 
@@ -51,11 +53,14 @@ class ReportScreen extends ConsumerWidget {
           _MonthSelectorRow(month: month),
           const SizedBox(height: 16),
 
+          const _BudgetSummaryCard(),
+          const SizedBox(height: 20),
+
           // ── Stat cards ────────────────────────────────
           statsAsync.when(
             loading: () => const _LoadingCard(height: 100),
-            error:   (e, _) => const SizedBox.shrink(),
-            data:    (stats) => _StatCards(stats: stats),
+            error: (e, _) => const SizedBox.shrink(),
+            data: (stats) => _StatCards(stats: stats),
           ),
           const SizedBox(height: 24),
 
@@ -81,8 +86,8 @@ class ReportScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           totalsAsync.when(
             loading: () => const _LoadingCard(height: 200),
-            error:   (e, _) => const SizedBox.shrink(),
-            data:    (totals) => _MonthlyBarChart(totals: totals),
+            error: (e, _) => const SizedBox.shrink(),
+            data: (totals) => _MonthlyBarChart(totals: totals),
           ),
           const SizedBox(height: 24),
 
@@ -96,8 +101,8 @@ class ReportScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           summaryAsync.when(
             loading: () => const _LoadingCard(height: 300),
-            error:   (e, _) => const SizedBox.shrink(),
-            data:    (summaries) {
+            error: (e, _) => const SizedBox.shrink(),
+            data: (summaries) {
               if (summaries.isEmpty) {
                 return Center(
                   child: Padding(
@@ -124,6 +129,74 @@ class ReportScreen extends ConsumerWidget {
   }
 }
 
+class _BudgetSummaryCard extends ConsumerWidget {
+  const _BudgetSummaryCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final budgetsAsync = ref.watch(budgetListProvider);
+    final budgets = budgetsAsync.valueOrNull;
+    final spent =
+        budgets?.fold<double>(0, (sum, item) => sum + item.spentAmount);
+    final limit =
+        budgets?.fold<double>(0, (sum, item) => sum + item.limitAmount);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.savings_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Anggaran kategori',
+                      style: Theme.of(context).textTheme.titleSmall),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BudgetScreen(),
+                    ),
+                  ),
+                  child: const Text('Atur Anggaran'),
+                ),
+              ],
+            ),
+            if (!budgetsAsync.hasValue && budgetsAsync.isLoading)
+              const LinearProgressIndicator()
+            else if (!budgetsAsync.hasValue)
+              Row(
+                children: [
+                  const Expanded(child: Text('Gagal memuat anggaran')),
+                  IconButton(
+                    tooltip: 'Coba lagi',
+                    onPressed: () => ref.invalidate(budgetListProvider),
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              )
+            else if (budgets!.isEmpty)
+              const Text('Belum ada anggaran untuk bulan ini')
+            else ...[
+              Text(
+                '${budgets.length} kategori • ${TransactionService.formatCurrency(spent!)} dari ${TransactionService.formatCurrency(limit!)}',
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // Navigasi bulan — identik dengan home, tapi di-extract ulang
 // karena context-nya berbeda (report bisa bebas pilih bulan mana saja)
@@ -140,22 +213,22 @@ class _MonthSelectorRow extends ConsumerWidget {
     return Row(
       children: [
         IconButton(
-          icon:  const Icon(Icons.chevron_left),
+          icon: const Icon(Icons.chevron_left),
           onPressed: notifier.goPrev,
-          style: IconButton.styleFrom(
-              backgroundColor: cs.surfaceContainerHighest),
+          style:
+              IconButton.styleFrom(backgroundColor: cs.surfaceContainerHighest),
         ),
         Expanded(
           child: Text(
             TransactionService.formatMonth(month.year, month.month),
-            textAlign:  TextAlign.center,
-            style:      Theme.of(context).textTheme.titleMedium?.copyWith(
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
           ),
         ),
         IconButton(
-          icon:  const Icon(Icons.chevron_right),
+          icon: const Icon(Icons.chevron_right),
           onPressed: month.isCurrentMonth ? null : notifier.goNext,
           style: IconButton.styleFrom(
             backgroundColor: month.isCurrentMonth
@@ -179,8 +252,7 @@ class _StatCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Hari paling boros — format ringkas "Sel, 14 Jan"
-    final busiestLabel =
-        '${_dayName(stats.busiestDay.weekday)}, '
+    final busiestLabel = '${_dayName(stats.busiestDay.weekday)}, '
         '${stats.busiestDay.day} '
         '${_shortMonth(stats.busiestDay.month)}';
 
@@ -190,7 +262,7 @@ class _StatCards extends StatelessWidget {
           child: _StatCard(
             label: 'Total bulan ini',
             value: TransactionService.formatCurrency(stats.totalSpent),
-            icon:  Icons.wallet_outlined,
+            icon: Icons.wallet_outlined,
           ),
         ),
         const SizedBox(width: 10),
@@ -198,7 +270,7 @@ class _StatCards extends StatelessWidget {
           child: _StatCard(
             label: 'Rata-rata/hari',
             value: TransactionService.formatCurrency(stats.avgPerDay),
-            icon:  Icons.today_outlined,
+            icon: Icons.today_outlined,
           ),
         ),
         const SizedBox(width: 10),
@@ -206,7 +278,7 @@ class _StatCards extends StatelessWidget {
           child: _StatCard(
             label: 'Hari terboros',
             value: busiestLabel,
-            icon:  Icons.local_fire_department_outlined,
+            icon: Icons.local_fire_department_outlined,
           ),
         ),
       ],
@@ -215,7 +287,7 @@ class _StatCards extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  final String   label, value;
+  final String label, value;
   final IconData icon;
   const _StatCard({
     required this.label,
@@ -227,9 +299,9 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding:    const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color:        cs.surfaceContainerHighest,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -239,8 +311,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
-                fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -249,7 +320,7 @@ class _StatCard extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 11,
-              color:    cs.onSurface.withOpacity(0.5),
+              color: cs.onSurface.withOpacity(0.5),
             ),
           ),
         ],
@@ -289,32 +360,31 @@ class _MonthlyBarChart extends StatelessWidget {
         x: e.key,
         barRods: [
           BarChartRodData(
-            toY:      e.value.total,
-            color:    isCurrentMonth ? cs.primary : cs.primary.withOpacity(0.4),
-            width:    22,
-            borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(6)),
+            toY: e.value.total,
+            color: isCurrentMonth ? cs.primary : cs.primary.withOpacity(0.4),
+            width: 22,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
           ),
         ],
       );
     }).toList();
 
     return Container(
-      height:     220,
-      padding:    const EdgeInsets.fromLTRB(0, 16, 16, 0),
+      height: 220,
+      padding: const EdgeInsets.fromLTRB(0, 16, 16, 0),
       decoration: BoxDecoration(
-        color:        cs.surfaceContainerHighest,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
       ),
       child: BarChart(
         BarChartData(
-          maxY:      maxVal,
+          maxY: maxVal,
           barGroups: bars,
           gridData: FlGridData(
-            show:                  true,
-            drawVerticalLine:      false,
+            show: true,
+            drawVerticalLine: false,
             getDrawingHorizontalLine: (val) => FlLine(
-              color:       cs.outline.withOpacity(0.15),
+              color: cs.outline.withOpacity(0.15),
               strokeWidth: 1,
             ),
           ),
@@ -323,7 +393,7 @@ class _MonthlyBarChart extends StatelessWidget {
             // Label bulan di bawah
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
-                showTitles:   true,
+                showTitles: true,
                 reservedSize: 28,
                 getTitlesWidget: (val, meta) {
                   final idx = val.toInt();
@@ -336,7 +406,7 @@ class _MonthlyBarChart extends StatelessWidget {
                       totals[idx].shortLabel,
                       style: TextStyle(
                         fontSize: 11,
-                        color:    cs.onSurface.withOpacity(0.5),
+                        color: cs.onSurface.withOpacity(0.5),
                       ),
                     ),
                   );
@@ -344,20 +414,20 @@ class _MonthlyBarChart extends StatelessWidget {
               ),
             ),
             // Sembunyikan label sumbu yang tidak perlu
-            leftTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
-            topTitles:  const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
+            leftTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
               getTooltipItem: (group, _, rod, __) => BarTooltipItem(
                 TransactionService.formatCurrency(rod.toY),
                 TextStyle(
-                  color:      cs.onPrimary,
-                  fontSize:   12,
+                  color: cs.onPrimary,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -389,25 +459,25 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
 
   @override
   Widget build(BuildContext context) {
-    final cs    = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
     final total = widget.summaries.fold(0.0, (s, c) => s + c.total);
     final sorted = [...widget.summaries]
       ..sort((a, b) => b.total.compareTo(a.total));
 
     final sections = sorted.asMap().entries.map((e) {
       final isTouched = e.key == _touchedIndex;
-      final pct       = total > 0 ? (e.value.total / total) : 0.0;
+      final pct = total > 0 ? (e.value.total / total) : 0.0;
       return PieChartSectionData(
-        value:  e.value.total,
-        color:  _hexToColor(e.value.color),
+        value: e.value.total,
+        color: _hexToColor(e.value.color),
         radius: isTouched ? 64 : 56,
         // Tampilkan persen hanya kalau porsinya cukup besar (> 5%)
         // biar label tidak saling tumpuk
-        title:  pct > 0.05 ? '${(pct * 100).round()}%' : '',
+        title: pct > 0.05 ? '${(pct * 100).round()}%' : '',
         titleStyle: TextStyle(
-          fontSize:   11,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
-          color:      Colors.white.withOpacity(0.9),
+          color: Colors.white.withOpacity(0.9),
         ),
       );
     }).toList();
@@ -424,9 +494,9 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
                 flex: 2,
                 child: PieChart(
                   PieChartData(
-                    sections:         sections,
+                    sections: sections,
                     centerSpaceRadius: 36,
-                    sectionsSpace:    2,
+                    sectionsSpace: 2,
                     pieTouchData: PieTouchData(
                       touchCallback: (event, response) {
                         setState(() {
@@ -434,8 +504,8 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
                               response?.touchedSection == null) {
                             _touchedIndex = null;
                           } else {
-                            _touchedIndex = response!
-                                .touchedSection!.touchedSectionIndex;
+                            _touchedIndex =
+                                response!.touchedSection!.touchedSectionIndex;
                           }
                         });
                       },
@@ -448,21 +518,20 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
                 flex: 3,
                 child: ListView(
                   shrinkWrap: true,
-                  physics:    const NeverScrollableScrollPhysics(),
-                  children:   sorted.asMap().entries.map((e) {
-                    final pct = total > 0
-                        ? (e.value.total / total * 100).round()
-                        : 0;
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: sorted.asMap().entries.map((e) {
+                    final pct =
+                        total > 0 ? (e.value.total / total * 100).round() : 0;
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         children: [
                           Container(
-                            width:  10,
+                            width: 10,
                             height: 10,
                             decoration: BoxDecoration(
-                              color:        _hexToColor(e.value.color),
-                              shape:        BoxShape.circle,
+                              color: _hexToColor(e.value.color),
+                              shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -476,9 +545,9 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
                           Text(
                             '$pct%',
                             style: TextStyle(
-                              fontSize:   11,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color:      cs.onSurface.withOpacity(0.6),
+                              color: cs.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ],
@@ -495,7 +564,7 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
         // List kategori — bisa di-tap untuk drill-down
         ...sorted.map((s) => _CategoryTile(
               summary: s,
-              total:   total,
+              total: total,
             )),
       ],
     );
@@ -504,20 +573,19 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
 
 class _CategoryTile extends StatelessWidget {
   final CategorySummary summary;
-  final double          total;
+  final double total;
   const _CategoryTile({required this.summary, required this.total});
 
   @override
   Widget build(BuildContext context) {
-    final cs  = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
     final pct = total > 0 ? summary.total / total : 0.0;
 
     return Card(
-      margin:    const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
-      color:     cs.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10)),
+      color: cs.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: summary.categoryId == null
@@ -526,9 +594,9 @@ class _CategoryTile extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => CategoryReportScreen(
-                      categoryId:   summary.categoryId!,
+                      categoryId: summary.categoryId!,
                       categoryName: summary.categoryName,
-                      color:        _hexToColor(summary.color),
+                      color: _hexToColor(summary.color),
                     ),
                   ),
                 ),
@@ -540,7 +608,7 @@ class _CategoryTile extends StatelessWidget {
                 children: [
                   Icon(
                     _iconFromString(summary.icon),
-                    size:  18,
+                    size: 18,
                     color: _hexToColor(summary.color),
                   ),
                   const SizedBox(width: 10),
@@ -560,8 +628,7 @@ class _CategoryTile extends StatelessWidget {
                   // Panah hanya tampil kalau ada categoryId (bisa di-tap)
                   if (summary.categoryId != null)
                     Icon(Icons.chevron_right,
-                        size: 16,
-                        color: cs.onSurface.withOpacity(0.3)),
+                        size: 16, color: cs.onSurface.withOpacity(0.3)),
                 ],
               ),
               const SizedBox(height: 8),
@@ -569,11 +636,11 @@ class _CategoryTile extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
-                  value:           pct,
-                  minHeight:       5,
+                  value: pct,
+                  minHeight: 5,
                   backgroundColor: cs.outline.withOpacity(0.12),
-                  valueColor:      AlwaysStoppedAnimation<Color>(
-                      _hexToColor(summary.color)),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(_hexToColor(summary.color)),
                 ),
               ),
             ],
@@ -592,9 +659,9 @@ class _LoadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height:     height,
+      height: height,
       decoration: BoxDecoration(
-        color:        Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
       ),
     );
@@ -609,8 +676,19 @@ String _dayName(int weekday) {
 
 String _shortMonth(int month) {
   const names = [
-    '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    '',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des'
   ];
   return names[month];
 }
@@ -625,13 +703,13 @@ Color _hexToColor(String hex) {
 
 IconData _iconFromString(String name) {
   const map = <String, IconData>{
-    'restaurant':            Icons.restaurant,
-    'directions_car':        Icons.directions_car,
-    'shopping_bag':          Icons.shopping_bag,
+    'restaurant': Icons.restaurant,
+    'directions_car': Icons.directions_car,
+    'shopping_bag': Icons.shopping_bag,
     'local_laundry_service': Icons.local_laundry_service,
-    'movie':                 Icons.movie,
-    'local_hospital':        Icons.local_hospital,
-    'more_horiz':            Icons.more_horiz,
+    'movie': Icons.movie,
+    'local_hospital': Icons.local_hospital,
+    'more_horiz': Icons.more_horiz,
   };
   return map[name] ?? Icons.category;
 }
