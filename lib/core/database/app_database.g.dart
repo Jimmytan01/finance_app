@@ -4622,6 +4622,866 @@ class BudgetAlertMarkersCompanion extends UpdateCompanion<BudgetAlertMarker> {
   }
 }
 
+class $TransactionReceiptsTable extends TransactionReceipts
+    with TableInfo<$TransactionReceiptsTable, TransactionReceipt> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TransactionReceiptsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _transactionIdMeta =
+      const VerificationMeta('transactionId');
+  @override
+  late final GeneratedColumn<String> transactionId = GeneratedColumn<String>(
+      'transaction_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _localPathMeta =
+      const VerificationMeta('localPath');
+  @override
+  late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
+      'local_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _storagePathMeta =
+      const VerificationMeta('storagePath');
+  @override
+  late final GeneratedColumn<String> storagePath = GeneratedColumn<String>(
+      'storage_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _mimeTypeMeta =
+      const VerificationMeta('mimeType');
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+      'mime_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _syncStateMeta =
+      const VerificationMeta('syncState');
+  @override
+  late final GeneratedColumn<String> syncState = GeneratedColumn<String>(
+      'sync_state', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        userId,
+        transactionId,
+        localPath,
+        storagePath,
+        mimeType,
+        syncState,
+        isDeleted,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'transaction_receipts';
+  @override
+  VerificationContext validateIntegrity(Insertable<TransactionReceipt> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+          _transactionIdMeta,
+          transactionId.isAcceptableOrUnknown(
+              data['transaction_id']!, _transactionIdMeta));
+    } else if (isInserting) {
+      context.missing(_transactionIdMeta);
+    }
+    if (data.containsKey('local_path')) {
+      context.handle(_localPathMeta,
+          localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta));
+    }
+    if (data.containsKey('storage_path')) {
+      context.handle(
+          _storagePathMeta,
+          storagePath.isAcceptableOrUnknown(
+              data['storage_path']!, _storagePathMeta));
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(_mimeTypeMeta,
+          mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta));
+    }
+    if (data.containsKey('sync_state')) {
+      context.handle(_syncStateMeta,
+          syncState.isAcceptableOrUnknown(data['sync_state']!, _syncStateMeta));
+    } else if (isInserting) {
+      context.missing(_syncStateMeta);
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TransactionReceipt map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TransactionReceipt(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      transactionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}transaction_id'])!,
+      localPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_path']),
+      storagePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}storage_path']),
+      mimeType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mime_type']),
+      syncState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_state'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TransactionReceiptsTable createAlias(String alias) {
+    return $TransactionReceiptsTable(attachedDatabase, alias);
+  }
+}
+
+class TransactionReceipt extends DataClass
+    implements Insertable<TransactionReceipt> {
+  final String id;
+  final String userId;
+  final String transactionId;
+  final String? localPath;
+  final String? storagePath;
+  final String? mimeType;
+  final String syncState;
+  final bool isDeleted;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const TransactionReceipt(
+      {required this.id,
+      required this.userId,
+      required this.transactionId,
+      this.localPath,
+      this.storagePath,
+      this.mimeType,
+      required this.syncState,
+      required this.isDeleted,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['transaction_id'] = Variable<String>(transactionId);
+    if (!nullToAbsent || localPath != null) {
+      map['local_path'] = Variable<String>(localPath);
+    }
+    if (!nullToAbsent || storagePath != null) {
+      map['storage_path'] = Variable<String>(storagePath);
+    }
+    if (!nullToAbsent || mimeType != null) {
+      map['mime_type'] = Variable<String>(mimeType);
+    }
+    map['sync_state'] = Variable<String>(syncState);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TransactionReceiptsCompanion toCompanion(bool nullToAbsent) {
+    return TransactionReceiptsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      transactionId: Value(transactionId),
+      localPath: localPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localPath),
+      storagePath: storagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(storagePath),
+      mimeType: mimeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mimeType),
+      syncState: Value(syncState),
+      isDeleted: Value(isDeleted),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TransactionReceipt.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TransactionReceipt(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      transactionId: serializer.fromJson<String>(json['transactionId']),
+      localPath: serializer.fromJson<String?>(json['localPath']),
+      storagePath: serializer.fromJson<String?>(json['storagePath']),
+      mimeType: serializer.fromJson<String?>(json['mimeType']),
+      syncState: serializer.fromJson<String>(json['syncState']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'transactionId': serializer.toJson<String>(transactionId),
+      'localPath': serializer.toJson<String?>(localPath),
+      'storagePath': serializer.toJson<String?>(storagePath),
+      'mimeType': serializer.toJson<String?>(mimeType),
+      'syncState': serializer.toJson<String>(syncState),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TransactionReceipt copyWith(
+          {String? id,
+          String? userId,
+          String? transactionId,
+          Value<String?> localPath = const Value.absent(),
+          Value<String?> storagePath = const Value.absent(),
+          Value<String?> mimeType = const Value.absent(),
+          String? syncState,
+          bool? isDeleted,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      TransactionReceipt(
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        transactionId: transactionId ?? this.transactionId,
+        localPath: localPath.present ? localPath.value : this.localPath,
+        storagePath: storagePath.present ? storagePath.value : this.storagePath,
+        mimeType: mimeType.present ? mimeType.value : this.mimeType,
+        syncState: syncState ?? this.syncState,
+        isDeleted: isDeleted ?? this.isDeleted,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TransactionReceipt copyWithCompanion(TransactionReceiptsCompanion data) {
+    return TransactionReceipt(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
+      localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      storagePath:
+          data.storagePath.present ? data.storagePath.value : this.storagePath,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      syncState: data.syncState.present ? data.syncState.value : this.syncState,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransactionReceipt(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('localPath: $localPath, ')
+          ..write('storagePath: $storagePath, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('syncState: $syncState, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, userId, transactionId, localPath,
+      storagePath, mimeType, syncState, isDeleted, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TransactionReceipt &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.transactionId == this.transactionId &&
+          other.localPath == this.localPath &&
+          other.storagePath == this.storagePath &&
+          other.mimeType == this.mimeType &&
+          other.syncState == this.syncState &&
+          other.isDeleted == this.isDeleted &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TransactionReceiptsCompanion extends UpdateCompanion<TransactionReceipt> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> transactionId;
+  final Value<String?> localPath;
+  final Value<String?> storagePath;
+  final Value<String?> mimeType;
+  final Value<String> syncState;
+  final Value<bool> isDeleted;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TransactionReceiptsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.localPath = const Value.absent(),
+    this.storagePath = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.syncState = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TransactionReceiptsCompanion.insert({
+    required String id,
+    required String userId,
+    required String transactionId,
+    this.localPath = const Value.absent(),
+    this.storagePath = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    required String syncState,
+    this.isDeleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        userId = Value(userId),
+        transactionId = Value(transactionId),
+        syncState = Value(syncState);
+  static Insertable<TransactionReceipt> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? transactionId,
+    Expression<String>? localPath,
+    Expression<String>? storagePath,
+    Expression<String>? mimeType,
+    Expression<String>? syncState,
+    Expression<bool>? isDeleted,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (transactionId != null) 'transaction_id': transactionId,
+      if (localPath != null) 'local_path': localPath,
+      if (storagePath != null) 'storage_path': storagePath,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (syncState != null) 'sync_state': syncState,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TransactionReceiptsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? userId,
+      Value<String>? transactionId,
+      Value<String?>? localPath,
+      Value<String?>? storagePath,
+      Value<String?>? mimeType,
+      Value<String>? syncState,
+      Value<bool>? isDeleted,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return TransactionReceiptsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      transactionId: transactionId ?? this.transactionId,
+      localPath: localPath ?? this.localPath,
+      storagePath: storagePath ?? this.storagePath,
+      mimeType: mimeType ?? this.mimeType,
+      syncState: syncState ?? this.syncState,
+      isDeleted: isDeleted ?? this.isDeleted,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<String>(transactionId.value);
+    }
+    if (localPath.present) {
+      map['local_path'] = Variable<String>(localPath.value);
+    }
+    if (storagePath.present) {
+      map['storage_path'] = Variable<String>(storagePath.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (syncState.present) {
+      map['sync_state'] = Variable<String>(syncState.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransactionReceiptsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('localPath: $localPath, ')
+          ..write('storagePath: $storagePath, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('syncState: $syncState, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReceiptUploadQueueTable extends ReceiptUploadQueue
+    with TableInfo<$ReceiptUploadQueueTable, ReceiptUploadQueueData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReceiptUploadQueueTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _receiptIdMeta =
+      const VerificationMeta('receiptId');
+  @override
+  late final GeneratedColumn<String> receiptId = GeneratedColumn<String>(
+      'receipt_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _operationMeta =
+      const VerificationMeta('operation');
+  @override
+  late final GeneratedColumn<String> operation = GeneratedColumn<String>(
+      'operation', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _retryCountMeta =
+      const VerificationMeta('retryCount');
+  @override
+  late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
+      'retry_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastErrorMeta =
+      const VerificationMeta('lastError');
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+      'last_error', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _queuedAtMeta =
+      const VerificationMeta('queuedAt');
+  @override
+  late final GeneratedColumn<DateTime> queuedAt = GeneratedColumn<DateTime>(
+      'queued_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, receiptId, operation, retryCount, lastError, queuedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'receipt_upload_queue';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<ReceiptUploadQueueData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('receipt_id')) {
+      context.handle(_receiptIdMeta,
+          receiptId.isAcceptableOrUnknown(data['receipt_id']!, _receiptIdMeta));
+    } else if (isInserting) {
+      context.missing(_receiptIdMeta);
+    }
+    if (data.containsKey('operation')) {
+      context.handle(_operationMeta,
+          operation.isAcceptableOrUnknown(data['operation']!, _operationMeta));
+    } else if (isInserting) {
+      context.missing(_operationMeta);
+    }
+    if (data.containsKey('retry_count')) {
+      context.handle(
+          _retryCountMeta,
+          retryCount.isAcceptableOrUnknown(
+              data['retry_count']!, _retryCountMeta));
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(_lastErrorMeta,
+          lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta));
+    }
+    if (data.containsKey('queued_at')) {
+      context.handle(_queuedAtMeta,
+          queuedAt.isAcceptableOrUnknown(data['queued_at']!, _queuedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {receiptId},
+      ];
+  @override
+  ReceiptUploadQueueData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReceiptUploadQueueData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      receiptId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}receipt_id'])!,
+      operation: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}operation'])!,
+      retryCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}retry_count'])!,
+      lastError: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error']),
+      queuedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}queued_at'])!,
+    );
+  }
+
+  @override
+  $ReceiptUploadQueueTable createAlias(String alias) {
+    return $ReceiptUploadQueueTable(attachedDatabase, alias);
+  }
+}
+
+class ReceiptUploadQueueData extends DataClass
+    implements Insertable<ReceiptUploadQueueData> {
+  final int id;
+  final String receiptId;
+  final String operation;
+  final int retryCount;
+  final String? lastError;
+  final DateTime queuedAt;
+  const ReceiptUploadQueueData(
+      {required this.id,
+      required this.receiptId,
+      required this.operation,
+      required this.retryCount,
+      this.lastError,
+      required this.queuedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['receipt_id'] = Variable<String>(receiptId);
+    map['operation'] = Variable<String>(operation);
+    map['retry_count'] = Variable<int>(retryCount);
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    map['queued_at'] = Variable<DateTime>(queuedAt);
+    return map;
+  }
+
+  ReceiptUploadQueueCompanion toCompanion(bool nullToAbsent) {
+    return ReceiptUploadQueueCompanion(
+      id: Value(id),
+      receiptId: Value(receiptId),
+      operation: Value(operation),
+      retryCount: Value(retryCount),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+      queuedAt: Value(queuedAt),
+    );
+  }
+
+  factory ReceiptUploadQueueData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReceiptUploadQueueData(
+      id: serializer.fromJson<int>(json['id']),
+      receiptId: serializer.fromJson<String>(json['receiptId']),
+      operation: serializer.fromJson<String>(json['operation']),
+      retryCount: serializer.fromJson<int>(json['retryCount']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+      queuedAt: serializer.fromJson<DateTime>(json['queuedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'receiptId': serializer.toJson<String>(receiptId),
+      'operation': serializer.toJson<String>(operation),
+      'retryCount': serializer.toJson<int>(retryCount),
+      'lastError': serializer.toJson<String?>(lastError),
+      'queuedAt': serializer.toJson<DateTime>(queuedAt),
+    };
+  }
+
+  ReceiptUploadQueueData copyWith(
+          {int? id,
+          String? receiptId,
+          String? operation,
+          int? retryCount,
+          Value<String?> lastError = const Value.absent(),
+          DateTime? queuedAt}) =>
+      ReceiptUploadQueueData(
+        id: id ?? this.id,
+        receiptId: receiptId ?? this.receiptId,
+        operation: operation ?? this.operation,
+        retryCount: retryCount ?? this.retryCount,
+        lastError: lastError.present ? lastError.value : this.lastError,
+        queuedAt: queuedAt ?? this.queuedAt,
+      );
+  ReceiptUploadQueueData copyWithCompanion(ReceiptUploadQueueCompanion data) {
+    return ReceiptUploadQueueData(
+      id: data.id.present ? data.id.value : this.id,
+      receiptId: data.receiptId.present ? data.receiptId.value : this.receiptId,
+      operation: data.operation.present ? data.operation.value : this.operation,
+      retryCount:
+          data.retryCount.present ? data.retryCount.value : this.retryCount,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      queuedAt: data.queuedAt.present ? data.queuedAt.value : this.queuedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReceiptUploadQueueData(')
+          ..write('id: $id, ')
+          ..write('receiptId: $receiptId, ')
+          ..write('operation: $operation, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('lastError: $lastError, ')
+          ..write('queuedAt: $queuedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, receiptId, operation, retryCount, lastError, queuedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReceiptUploadQueueData &&
+          other.id == this.id &&
+          other.receiptId == this.receiptId &&
+          other.operation == this.operation &&
+          other.retryCount == this.retryCount &&
+          other.lastError == this.lastError &&
+          other.queuedAt == this.queuedAt);
+}
+
+class ReceiptUploadQueueCompanion
+    extends UpdateCompanion<ReceiptUploadQueueData> {
+  final Value<int> id;
+  final Value<String> receiptId;
+  final Value<String> operation;
+  final Value<int> retryCount;
+  final Value<String?> lastError;
+  final Value<DateTime> queuedAt;
+  const ReceiptUploadQueueCompanion({
+    this.id = const Value.absent(),
+    this.receiptId = const Value.absent(),
+    this.operation = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.queuedAt = const Value.absent(),
+  });
+  ReceiptUploadQueueCompanion.insert({
+    this.id = const Value.absent(),
+    required String receiptId,
+    required String operation,
+    this.retryCount = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.queuedAt = const Value.absent(),
+  })  : receiptId = Value(receiptId),
+        operation = Value(operation);
+  static Insertable<ReceiptUploadQueueData> custom({
+    Expression<int>? id,
+    Expression<String>? receiptId,
+    Expression<String>? operation,
+    Expression<int>? retryCount,
+    Expression<String>? lastError,
+    Expression<DateTime>? queuedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (receiptId != null) 'receipt_id': receiptId,
+      if (operation != null) 'operation': operation,
+      if (retryCount != null) 'retry_count': retryCount,
+      if (lastError != null) 'last_error': lastError,
+      if (queuedAt != null) 'queued_at': queuedAt,
+    });
+  }
+
+  ReceiptUploadQueueCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? receiptId,
+      Value<String>? operation,
+      Value<int>? retryCount,
+      Value<String?>? lastError,
+      Value<DateTime>? queuedAt}) {
+    return ReceiptUploadQueueCompanion(
+      id: id ?? this.id,
+      receiptId: receiptId ?? this.receiptId,
+      operation: operation ?? this.operation,
+      retryCount: retryCount ?? this.retryCount,
+      lastError: lastError ?? this.lastError,
+      queuedAt: queuedAt ?? this.queuedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (receiptId.present) {
+      map['receipt_id'] = Variable<String>(receiptId.value);
+    }
+    if (operation.present) {
+      map['operation'] = Variable<String>(operation.value);
+    }
+    if (retryCount.present) {
+      map['retry_count'] = Variable<int>(retryCount.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (queuedAt.present) {
+      map['queued_at'] = Variable<DateTime>(queuedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReceiptUploadQueueCompanion(')
+          ..write('id: $id, ')
+          ..write('receiptId: $receiptId, ')
+          ..write('operation: $operation, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('lastError: $lastError, ')
+          ..write('queuedAt: $queuedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4641,6 +5501,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $CategoryBudgetsTable(this);
   late final $BudgetAlertMarkersTable budgetAlertMarkers =
       $BudgetAlertMarkersTable(this);
+  late final $TransactionReceiptsTable transactionReceipts =
+      $TransactionReceiptsTable(this);
+  late final $ReceiptUploadQueueTable receiptUploadQueue =
+      $ReceiptUploadQueueTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4656,7 +5520,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         devices,
         syncQueue,
         categoryBudgets,
-        budgetAlertMarkers
+        budgetAlertMarkers,
+        transactionReceipts,
+        receiptUploadQueue
       ];
 }
 
@@ -7901,6 +8767,446 @@ typedef $$BudgetAlertMarkersTableProcessedTableManager = ProcessedTableManager<
     ),
     BudgetAlertMarker,
     PrefetchHooks Function()>;
+typedef $$TransactionReceiptsTableCreateCompanionBuilder
+    = TransactionReceiptsCompanion Function({
+  required String id,
+  required String userId,
+  required String transactionId,
+  Value<String?> localPath,
+  Value<String?> storagePath,
+  Value<String?> mimeType,
+  required String syncState,
+  Value<bool> isDeleted,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$TransactionReceiptsTableUpdateCompanionBuilder
+    = TransactionReceiptsCompanion Function({
+  Value<String> id,
+  Value<String> userId,
+  Value<String> transactionId,
+  Value<String?> localPath,
+  Value<String?> storagePath,
+  Value<String?> mimeType,
+  Value<String> syncState,
+  Value<bool> isDeleted,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TransactionReceiptsTableFilterComposer
+    extends Composer<_$AppDatabase, $TransactionReceiptsTable> {
+  $$TransactionReceiptsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get transactionId => $composableBuilder(
+      column: $table.transactionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get localPath => $composableBuilder(
+      column: $table.localPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get storagePath => $composableBuilder(
+      column: $table.storagePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+      column: $table.mimeType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncState => $composableBuilder(
+      column: $table.syncState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TransactionReceiptsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TransactionReceiptsTable> {
+  $$TransactionReceiptsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get transactionId => $composableBuilder(
+      column: $table.transactionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get localPath => $composableBuilder(
+      column: $table.localPath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get storagePath => $composableBuilder(
+      column: $table.storagePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+      column: $table.mimeType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncState => $composableBuilder(
+      column: $table.syncState, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TransactionReceiptsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TransactionReceiptsTable> {
+  $$TransactionReceiptsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get transactionId => $composableBuilder(
+      column: $table.transactionId, builder: (column) => column);
+
+  GeneratedColumn<String> get localPath =>
+      $composableBuilder(column: $table.localPath, builder: (column) => column);
+
+  GeneratedColumn<String> get storagePath => $composableBuilder(
+      column: $table.storagePath, builder: (column) => column);
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<String> get syncState =>
+      $composableBuilder(column: $table.syncState, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TransactionReceiptsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TransactionReceiptsTable,
+    TransactionReceipt,
+    $$TransactionReceiptsTableFilterComposer,
+    $$TransactionReceiptsTableOrderingComposer,
+    $$TransactionReceiptsTableAnnotationComposer,
+    $$TransactionReceiptsTableCreateCompanionBuilder,
+    $$TransactionReceiptsTableUpdateCompanionBuilder,
+    (
+      TransactionReceipt,
+      BaseReferences<_$AppDatabase, $TransactionReceiptsTable,
+          TransactionReceipt>
+    ),
+    TransactionReceipt,
+    PrefetchHooks Function()> {
+  $$TransactionReceiptsTableTableManager(
+      _$AppDatabase db, $TransactionReceiptsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TransactionReceiptsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TransactionReceiptsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TransactionReceiptsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> transactionId = const Value.absent(),
+            Value<String?> localPath = const Value.absent(),
+            Value<String?> storagePath = const Value.absent(),
+            Value<String?> mimeType = const Value.absent(),
+            Value<String> syncState = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TransactionReceiptsCompanion(
+            id: id,
+            userId: userId,
+            transactionId: transactionId,
+            localPath: localPath,
+            storagePath: storagePath,
+            mimeType: mimeType,
+            syncState: syncState,
+            isDeleted: isDeleted,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String userId,
+            required String transactionId,
+            Value<String?> localPath = const Value.absent(),
+            Value<String?> storagePath = const Value.absent(),
+            Value<String?> mimeType = const Value.absent(),
+            required String syncState,
+            Value<bool> isDeleted = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TransactionReceiptsCompanion.insert(
+            id: id,
+            userId: userId,
+            transactionId: transactionId,
+            localPath: localPath,
+            storagePath: storagePath,
+            mimeType: mimeType,
+            syncState: syncState,
+            isDeleted: isDeleted,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TransactionReceiptsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $TransactionReceiptsTable,
+    TransactionReceipt,
+    $$TransactionReceiptsTableFilterComposer,
+    $$TransactionReceiptsTableOrderingComposer,
+    $$TransactionReceiptsTableAnnotationComposer,
+    $$TransactionReceiptsTableCreateCompanionBuilder,
+    $$TransactionReceiptsTableUpdateCompanionBuilder,
+    (
+      TransactionReceipt,
+      BaseReferences<_$AppDatabase, $TransactionReceiptsTable,
+          TransactionReceipt>
+    ),
+    TransactionReceipt,
+    PrefetchHooks Function()>;
+typedef $$ReceiptUploadQueueTableCreateCompanionBuilder
+    = ReceiptUploadQueueCompanion Function({
+  Value<int> id,
+  required String receiptId,
+  required String operation,
+  Value<int> retryCount,
+  Value<String?> lastError,
+  Value<DateTime> queuedAt,
+});
+typedef $$ReceiptUploadQueueTableUpdateCompanionBuilder
+    = ReceiptUploadQueueCompanion Function({
+  Value<int> id,
+  Value<String> receiptId,
+  Value<String> operation,
+  Value<int> retryCount,
+  Value<String?> lastError,
+  Value<DateTime> queuedAt,
+});
+
+class $$ReceiptUploadQueueTableFilterComposer
+    extends Composer<_$AppDatabase, $ReceiptUploadQueueTable> {
+  $$ReceiptUploadQueueTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get receiptId => $composableBuilder(
+      column: $table.receiptId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get operation => $composableBuilder(
+      column: $table.operation, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get queuedAt => $composableBuilder(
+      column: $table.queuedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ReceiptUploadQueueTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReceiptUploadQueueTable> {
+  $$ReceiptUploadQueueTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get receiptId => $composableBuilder(
+      column: $table.receiptId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get operation => $composableBuilder(
+      column: $table.operation, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get queuedAt => $composableBuilder(
+      column: $table.queuedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ReceiptUploadQueueTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReceiptUploadQueueTable> {
+  $$ReceiptUploadQueueTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get receiptId =>
+      $composableBuilder(column: $table.receiptId, builder: (column) => column);
+
+  GeneratedColumn<String> get operation =>
+      $composableBuilder(column: $table.operation, builder: (column) => column);
+
+  GeneratedColumn<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => column);
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get queuedAt =>
+      $composableBuilder(column: $table.queuedAt, builder: (column) => column);
+}
+
+class $$ReceiptUploadQueueTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ReceiptUploadQueueTable,
+    ReceiptUploadQueueData,
+    $$ReceiptUploadQueueTableFilterComposer,
+    $$ReceiptUploadQueueTableOrderingComposer,
+    $$ReceiptUploadQueueTableAnnotationComposer,
+    $$ReceiptUploadQueueTableCreateCompanionBuilder,
+    $$ReceiptUploadQueueTableUpdateCompanionBuilder,
+    (
+      ReceiptUploadQueueData,
+      BaseReferences<_$AppDatabase, $ReceiptUploadQueueTable,
+          ReceiptUploadQueueData>
+    ),
+    ReceiptUploadQueueData,
+    PrefetchHooks Function()> {
+  $$ReceiptUploadQueueTableTableManager(
+      _$AppDatabase db, $ReceiptUploadQueueTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReceiptUploadQueueTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReceiptUploadQueueTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReceiptUploadQueueTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> receiptId = const Value.absent(),
+            Value<String> operation = const Value.absent(),
+            Value<int> retryCount = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<DateTime> queuedAt = const Value.absent(),
+          }) =>
+              ReceiptUploadQueueCompanion(
+            id: id,
+            receiptId: receiptId,
+            operation: operation,
+            retryCount: retryCount,
+            lastError: lastError,
+            queuedAt: queuedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String receiptId,
+            required String operation,
+            Value<int> retryCount = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<DateTime> queuedAt = const Value.absent(),
+          }) =>
+              ReceiptUploadQueueCompanion.insert(
+            id: id,
+            receiptId: receiptId,
+            operation: operation,
+            retryCount: retryCount,
+            lastError: lastError,
+            queuedAt: queuedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ReceiptUploadQueueTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ReceiptUploadQueueTable,
+    ReceiptUploadQueueData,
+    $$ReceiptUploadQueueTableFilterComposer,
+    $$ReceiptUploadQueueTableOrderingComposer,
+    $$ReceiptUploadQueueTableAnnotationComposer,
+    $$ReceiptUploadQueueTableCreateCompanionBuilder,
+    $$ReceiptUploadQueueTableUpdateCompanionBuilder,
+    (
+      ReceiptUploadQueueData,
+      BaseReferences<_$AppDatabase, $ReceiptUploadQueueTable,
+          ReceiptUploadQueueData>
+    ),
+    ReceiptUploadQueueData,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7927,6 +9233,10 @@ class $AppDatabaseManager {
       $$CategoryBudgetsTableTableManager(_db, _db.categoryBudgets);
   $$BudgetAlertMarkersTableTableManager get budgetAlertMarkers =>
       $$BudgetAlertMarkersTableTableManager(_db, _db.budgetAlertMarkers);
+  $$TransactionReceiptsTableTableManager get transactionReceipts =>
+      $$TransactionReceiptsTableTableManager(_db, _db.transactionReceipts);
+  $$ReceiptUploadQueueTableTableManager get receiptUploadQueue =>
+      $$ReceiptUploadQueueTableTableManager(_db, _db.receiptUploadQueue);
 }
 
 mixin _$TransactionDaoMixin on DatabaseAccessor<AppDatabase> {

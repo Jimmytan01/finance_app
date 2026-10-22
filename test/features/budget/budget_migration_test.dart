@@ -3,7 +3,7 @@ import 'package:finance_app/core/database/app_database.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('schema v1 transaction data survives upgrade to schema v2', () async {
+  test('schema v1 transaction data survives upgrade to schema v3', () async {
     final database = AppDatabase.forTesting(
       NativeDatabase.memory(
         setup: (sqlite) {
@@ -36,10 +36,15 @@ void main() {
 
     final saved = await database.select(database.transactions).getSingle();
     final budgets = await database.select(database.categoryBudgets).get();
+    final receipts = await database.select(database.transactionReceipts).get();
+    final receiptQueue =
+        await database.select(database.receiptUploadQueue).get();
 
     expect(saved.id, 'legacy-tx');
     expect(saved.userId, 'user-1');
     expect(saved.totalAmount, 25000);
     expect(budgets, isEmpty);
+    expect(receipts, isEmpty);
+    expect(receiptQueue, isEmpty);
   });
 }
