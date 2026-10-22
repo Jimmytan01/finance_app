@@ -50,8 +50,22 @@ class BudgetRepository {
           limitAmount: row.limitAmount,
           spentAmount: spent,
         ),
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
       );
     }));
+  }
+
+  Future<BudgetSummary?> getById(String budgetId) async {
+    final row = await (_db.select(_db.categoryBudgets)
+          ..where((budget) => budget.id.equals(budgetId)))
+        .getSingleOrNull();
+    if (row == null) return null;
+    final summaries = await getForMonth(row.userId, row.year, row.month);
+    for (final summary in summaries) {
+      if (summary.id == budgetId) return summary;
+    }
+    return null;
   }
 
   Future<void> save(BudgetInput input) async {

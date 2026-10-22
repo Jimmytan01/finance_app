@@ -60,6 +60,8 @@ class BudgetSummary {
   final double spentAmount;
   final bool notificationsEnabled;
   final BudgetProgress progress;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const BudgetSummary({
     required this.id,
@@ -72,5 +74,7 @@ class BudgetSummary {
     required this.spentAmount,
     required this.notificationsEnabled,
     required this.progress,
+    required this.createdAt,
+    required this.updatedAt,
   });
 }

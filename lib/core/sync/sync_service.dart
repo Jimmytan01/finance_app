@@ -10,6 +10,7 @@ const _parentTables = [
   'categories',
   'transactions',
   'bill_sessions',
+  'category_budgets',
 ];
  
 // Tabel child — tidak punya user_id, perlu pull via parent IDs
@@ -60,6 +61,7 @@ class SyncService {
   final SupabaseClient _supabase;
   final String         _userId;
   final String         _deviceId;
+  final Future<bool> Function()? _isOnlineOverride;
  
   final _statusController = StreamController<SyncResult>.broadcast();
   Stream<SyncResult> get statusStream => _statusController.stream;
@@ -73,10 +75,12 @@ class SyncService {
     required SupabaseClient supabase,
     required String         userId,
     required String         deviceId,
+    Future<bool> Function()? isOnline,
   })  : _db      = db,
         _supabase = supabase,
         _userId   = userId,
-        _deviceId = deviceId;
+        _deviceId = deviceId,
+        _isOnlineOverride = isOnline;
  
   void init() {
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
@@ -95,6 +99,7 @@ class SyncService {
   }
  
   Future<bool> isOnline() async {
+    if (_isOnlineOverride != null) return _isOnlineOverride();
     final results = await Connectivity().checkConnectivity();
     return results.any((r) => r != ConnectivityResult.none);
   }
@@ -171,11 +176,7 @@ class SyncService {
         await queueDao.deleteById(entry.id);
         successCount++;
       } catch (e) {
-        if (entry.retryCount >= 5) {
-          await queueDao.deleteById(entry.id);
-        } else {
-          await queueDao.incrementRetry(entry.id);
-        }
+        await queueDao.incrementRetry(entry.id);
         continue;
       }
     }
@@ -213,6 +214,13 @@ class SyncService {
         }
  
         for (final row in rows) {
+          if (table == 'category_budgets' &&
+              await SyncQueueDao(_db).hasPending(
+                tableName: table,
+                recordId: row['id'] as String,
+              )) {
+            continue;
+          }
           await _upsertToLocal(table, row);
           pulledCount++;
         }
@@ -488,14 +496,25 @@ class SyncService {
             column: 'user_id',
             value:  _userId,
           ),
-          callback: (_) {
-            // Ada perubahan dari device lain — jalankan full sync
-            // (bukan hanya pull) supaya reconcile delete juga jalan
-            _debounceTimer?.cancel();
-            _debounceTimer = Timer(const Duration(seconds: 1), fullSync);
-          },
+          callback: (_) => _scheduleFullSync(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'category_budgets',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: _userId,
+          ),
+          callback: (_) => _scheduleFullSync(),
         )
         .subscribe();
+  }
+
+  void _scheduleFullSync() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 1), fullSync);
   }
  
   void unsubscribeRealtime() {
@@ -535,6 +554,23 @@ class SyncService {
                   syncedAt:    Value(DateTime.now()),
                   createdAt:   Value(_parseDate(row['created_at'])),
                   updatedAt:   Value(_parseDate(row['updated_at'])),
+                ),
+              );
+
+        case 'category_budgets':
+          await _db.into(_db.categoryBudgets).insertOnConflictUpdate(
+                CategoryBudgetsCompanion(
+                  id: Value(row['id'] as String),
+                  userId: Value(row['user_id'] as String),
+                  categoryId: Value(row['category_id'] as String),
+                  year: Value((row['year'] as num).toInt()),
+                  month: Value((row['month'] as num).toInt()),
+                  limitAmount: Value((row['limit_amount'] as num).toDouble()),
+                  notificationsEnabled:
+                      Value(row['notifications_enabled'] as bool? ?? true),
+                  isDeleted: Value(row['is_deleted'] as bool? ?? false),
+                  createdAt: Value(_parseDate(row['created_at'])),
+                  updatedAt: Value(_parseDate(row['updated_at'])),
                 ),
               );
  
@@ -625,6 +661,9 @@ class SyncService {
     await _db.delete(_db.billParticipants).go();
     await _db.delete(_db.billSessions).go();
     await _db.delete(_db.categories).go();
+    await (_db.delete(_db.categoryBudgets)
+          ..where((budget) => budget.userId.equals(_userId)))
+        .go();
     await _db.delete(_db.syncQueue).go();
   });
 }

@@ -818,6 +818,18 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
    Future<void> enqueue(SyncQueueCompanion entry) =>
        into(syncQueue).insert(entry);
 
+   Future<bool> hasPending({
+     required String tableName,
+     required String recordId,
+   }) async {
+     final row = await (select(syncQueue)
+           ..where((entry) =>
+               entry.targetTable.equals(tableName) &
+               entry.recordId.equals(recordId)))
+         .getSingleOrNull();
+     return row != null;
+   }
+
    Future<void> deleteById(int id) =>
        (delete(syncQueue)..where((q) => q.id.equals(id))).go();
 
