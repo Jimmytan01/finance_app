@@ -7,6 +7,7 @@ import '../../budget/providers/budget_alert_providers.dart';
 import '../../../core/providers/database_providers.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/transaction_service.dart';
+import 'receipt_providers.dart';
 
 // ─────────────────────────────────────────────────────────────
 // syncTickProvider — "detak jantung" sync.
@@ -147,6 +148,13 @@ final transactionItemsProvider = FutureProvider.autoDispose
 });
 
 class TransactionSubmitNotifier extends AsyncNotifier<void> {
+  String? _pendingReceiptTransactionId;
+
+  void resetPartialReceipt() {
+    _pendingReceiptTransactionId = null;
+    ref.read(receiptSubmitErrorProvider.notifier).state = null;
+  }
+
   @override
   Future<void> build() async {}
 
@@ -155,11 +163,25 @@ class TransactionSubmitNotifier extends AsyncNotifier<void> {
 
     state = const AsyncLoading();
     try {
+      final pendingTransactionId = _pendingReceiptTransactionId;
+      if (pendingTransactionId != null) {
+        await _applyReceiptDraft(
+          pendingTransactionId,
+          ref.read(receiptDraftProvider),
+        );
+        _pendingReceiptTransactionId = null;
+        ref.read(receiptSubmitErrorProvider.notifier).state = null;
+        state = const AsyncData<void>(null);
+        return true;
+      }
+
       final service = ref.read(transactionServiceProvider);
+      late final String transactionId;
       if (editTxId == null) {
-        await service.saveTransaction(input);
+        transactionId = await service.saveTransaction(input);
       } else {
         await service.updateTransaction(editTxId, input);
+        transactionId = editTxId;
       }
 
       unawaited(ref.read(budgetAlertServiceProvider).evaluateForMonth(
@@ -167,6 +189,25 @@ class TransactionSubmitNotifier extends AsyncNotifier<void> {
             year: input.date.year,
             month: input.date.month,
           ));
+
+      final receiptDraft = ref.read(receiptDraftProvider);
+      if (receiptDraft.hasChanges) {
+        _pendingReceiptTransactionId = transactionId;
+        ref.read(receiptSubmitErrorProvider.notifier).state = null;
+        try {
+          await _applyReceiptDraft(transactionId, receiptDraft);
+          _pendingReceiptTransactionId = null;
+        } catch (error) {
+          ref.read(receiptSubmitErrorProvider.notifier).state =
+              'Transaksi tersimpan, tetapi foto struk belum tersimpan. Coba ulang lampiran.';
+          ref.invalidate(receiptForTransactionProvider(transactionId));
+          ref.invalidate(monthlyTransactionsProvider);
+          ref.invalidate(monthlyCategorySummaryProvider);
+          ref.invalidate(monthlyTotalProvider);
+          state = const AsyncData<void>(null);
+          return true;
+        }
+      }
 
       ref.invalidate(monthlyTransactionsProvider);
       ref.invalidate(monthlyCategorySummaryProvider);
@@ -177,6 +218,29 @@ class TransactionSubmitNotifier extends AsyncNotifier<void> {
       state = AsyncError<void>(error, stackTrace);
       return false;
     }
+  }
+
+  Future<void> _applyReceiptDraft(
+    String transactionId,
+    ReceiptDraftState draft,
+  ) async {
+    final userId = ref.read(currentUserIdProvider);
+    if (draft.selectedImage case final image?) {
+      final receipt =
+          await ref.read(receiptAttachmentServiceProvider).stageForTransaction(
+                userId: userId,
+                transactionId: transactionId,
+                image: image,
+              );
+      ref.read(receiptDraftProvider.notifier).keepExisting(receipt);
+    } else if (draft.removeExisting && draft.existing != null) {
+      await ref
+          .read(receiptRepositoryProvider)
+          .markForDelete(draft.existing!.id);
+      ref.read(receiptDraftProvider.notifier).keepExisting(null);
+    }
+    ref.invalidate(receiptForTransactionProvider(transactionId));
+    unawaited(ref.read(syncNowProvider)());
   }
 }
 

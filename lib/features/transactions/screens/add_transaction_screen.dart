@@ -1,11 +1,17 @@
 // Form input transaksi: tanggal, tempat, list item dinamis.
 // Setiap item punya nama, kategori, harga satuan, jumlah, diskon.
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
+import '../models/receipt_models.dart';
+import '../providers/receipt_providers.dart';
 import '../providers/transaction_providers.dart';
+import '../services/receipt_picker_service.dart';
 import '../services/transaction_service.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
@@ -21,21 +27,50 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+    ref.read(transactionSubmitProvider.notifier).resetPartialReceipt();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final draft = ref.read(receiptDraftProvider.notifier);
+      draft.reset();
+      if (widget.editTxId == null) {
+        unawaited(draft.recoverLostImage());
+      } else {
+        unawaited(_loadExistingReceipt(widget.editTxId!));
+      }
+    });
+  }
+
+  Future<void> _loadExistingReceipt(String transactionId) async {
+    try {
+      final receipt = await ref.read(
+        receiptForTransactionProvider(transactionId).future,
+      );
+      if (mounted) {
+        ref.read(receiptDraftProvider.notifier).keepExisting(receipt);
+      }
+    } catch (_) {
+      // The attachment panel exposes the provider error and its retry action.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final input           = ref.watch(addTransactionProvider);
-    final notifier        = ref.read(addTransactionProvider.notifier);
+    final input = ref.watch(addTransactionProvider);
+    final notifier = ref.read(addTransactionProvider.notifier);
     final categoriesAsync = ref.watch(categoriesProvider);
-    final submitState     = ref.watch(transactionSubmitProvider);
-    final isEdit          = widget.editTxId != null;
- 
+    final submitState = ref.watch(transactionSubmitProvider);
+    final isEdit = widget.editTxId != null;
+
     return Scaffold(
       appBar: AppBar(
-        title:       Text(isEdit ? 'Edit Transaksi' : 'Tambah Transaksi'),
+        title: Text(isEdit ? 'Edit Transaksi' : 'Tambah Transaksi'),
         centerTitle: true,
       ),
       body: categoriesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:   (_, __) => Center(
+        error: (_, __) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -48,15 +83,15 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
             ],
           ),
         ),
-        data:    (categories) => Form(
+        data: (categories) => Form(
           key: _formKey,
           child: _FormWithSaveButton(
-            input:       input,
-            notifier:    notifier,
-            categories:  categories,
-            isEdit:      isEdit,
-            editTxId:    widget.editTxId,
-            formKey:     _formKey,
+            input: input,
+            notifier: notifier,
+            categories: categories,
+            isEdit: isEdit,
+            editTxId: widget.editTxId,
+            formKey: _formKey,
             submitState: submitState,
           ),
         ),
@@ -64,20 +99,20 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     );
   }
 }
- 
+
 // ─────────────────────────────────────────────────────────────
 // Wrapper Column: scroll area (form) + sticky bar bawah
 // ─────────────────────────────────────────────────────────────
- 
+
 class _FormWithSaveButton extends ConsumerWidget {
-  final TransactionInput       input;
+  final TransactionInput input;
   final AddTransactionNotifier notifier;
-  final List<Category>         categories;
-  final bool                   isEdit;
-  final String?                editTxId;
-  final GlobalKey<FormState>   formKey;
-  final AsyncValue<void>       submitState;
- 
+  final List<Category> categories;
+  final bool isEdit;
+  final String? editTxId;
+  final GlobalKey<FormState> formKey;
+  final AsyncValue<void> submitState;
+
   const _FormWithSaveButton({
     required this.input,
     required this.notifier,
@@ -87,11 +122,11 @@ class _FormWithSaveButton extends ConsumerWidget {
     required this.formKey,
     required this.submitState,
   });
- 
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
- 
+
     return Column(
       children: [
         Expanded(
@@ -99,8 +134,9 @@ class _FormWithSaveButton extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             children: [
               _HeaderSection(input: input, notifier: notifier),
+              const SizedBox(height: 16),
+              _ReceiptAttachmentCard(editTxId: editTxId),
               const SizedBox(height: 24),
- 
               Row(
                 children: [
                   Text('Item Pengeluaran',
@@ -111,30 +147,26 @@ class _FormWithSaveButton extends ConsumerWidget {
                   const Spacer(),
                   Text('${input.items.length} item',
                       style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurface.withOpacity(0.45))),
+                          fontSize: 12, color: cs.onSurface.withOpacity(0.45))),
                 ],
               ),
               const SizedBox(height: 8),
- 
               ...input.items.asMap().entries.map((e) => _ItemCard(
-                    index:      e.key,
-                    item:       e.value,
+                    index: e.key,
+                    item: e.value,
                     categories: categories,
-                    onChanged:  (updated) =>
-                        notifier.updateItem(e.key, updated),
-                    onRemove:   input.items.length > 1
+                    onChanged: (updated) => notifier.updateItem(e.key, updated),
+                    onRemove: input.items.length > 1
                         ? () => notifier.removeItem(e.key)
                         : null,
                   )),
- 
               OutlinedButton.icon(
-                onPressed:  notifier.addItem,
-                icon:       const Icon(Icons.add, size: 18),
-                label:      const Text('Tambah Item'),
-                style:      OutlinedButton.styleFrom(
+                onPressed: notifier.addItem,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Tambah Item'),
+                style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
-                  shape:       RoundedRectangleBorder(
+                  shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -143,25 +175,25 @@ class _FormWithSaveButton extends ConsumerWidget {
           ),
         ),
         _StickyBottomBar(
-          input:       input,
-          isEdit:      isEdit,
-          editTxId:    editTxId,
-          formKey:     formKey,
+          input: input,
+          isEdit: isEdit,
+          editTxId: editTxId,
+          formKey: formKey,
           submitState: submitState,
         ),
       ],
     );
   }
 }
- 
+
 // ─────────────────────────────────────────────────────────────
 // Sticky bar bawah: total + tombol simpan
 // ─────────────────────────────────────────────────────────────
- 
+
 class _StickyBottomBar extends ConsumerWidget {
   final TransactionInput input;
-  final bool             isEdit;
-  final String?          editTxId;
+  final bool isEdit;
+  final String? editTxId;
   final GlobalKey<FormState> formKey;
   final AsyncValue<void> submitState;
   const _StickyBottomBar(
@@ -170,21 +202,22 @@ class _StickyBottomBar extends ConsumerWidget {
       required this.editTxId,
       required this.formKey,
       required this.submitState});
- 
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs      = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
     final hasItems = input.items.any((i) => i.unitPrice > 0);
     final isSubmitting = submitState.isLoading;
- 
+    final receiptError = ref.watch(receiptSubmitErrorProvider);
+
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         boxShadow: [
           BoxShadow(
-              color:      Colors.black.withOpacity(0.06),
+              color: Colors.black.withOpacity(0.06),
               blurRadius: 12,
-              offset:     const Offset(0, -3)),
+              offset: const Offset(0, -3)),
         ],
       ),
       padding: EdgeInsets.fromLTRB(
@@ -192,30 +225,34 @@ class _StickyBottomBar extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (receiptError != null) ...[
+            Text(
+              receiptError,
+              style: TextStyle(color: cs.error, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+          ],
           Row(
             children: [
               Text('Total',
                   style: TextStyle(
-                      fontSize: 14,
-                      color:    cs.onSurface.withOpacity(0.6))),
+                      fontSize: 14, color: cs.onSurface.withOpacity(0.6))),
               const Spacer(),
               Text(
                 TransactionService.formatCurrency(input.total),
                 style: TextStyle(
-                  fontSize:   18,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color:      hasItems
-                      ? cs.primary
-                      : cs.onSurface.withOpacity(0.3),
+                  color: hasItems ? cs.primary : cs.onSurface.withOpacity(0.3),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
           FilledButton.icon(
-            onPressed: hasItems && !isSubmitting
-                ? () => _save(context, ref)
-                : null,
+            onPressed:
+                hasItems && !isSubmitting ? () => _save(context, ref) : null,
             icon: isSubmitting
                 ? const SizedBox(
                     width: 18,
@@ -226,14 +263,19 @@ class _StickyBottomBar extends ConsumerWidget {
                 : Icon(
                     isEdit ? Icons.check_circle_outline : Icons.save_outlined,
                     size: 20),
-            label: Text(isSubmitting
-                ? 'Menyimpan...'
-                : isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi',
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w600)),
+            label: Text(
+                isSubmitting
+                    ? 'Menyimpan...'
+                    : receiptError != null
+                        ? 'Coba lagi lampiran struk'
+                        : isEdit
+                            ? 'Simpan Perubahan'
+                            : 'Simpan Transaksi',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
-              shape:       RoundedRectangleBorder(
+              shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
               disabledBackgroundColor: cs.surfaceContainerHighest,
             ),
@@ -244,8 +286,7 @@ class _StickyBottomBar extends ConsumerWidget {
               child: Text(
                 'Isi minimal satu item dengan harga lebih dari 0',
                 style: TextStyle(
-                    fontSize: 11,
-                    color:    cs.onSurface.withOpacity(0.35)),
+                    fontSize: 11, color: cs.onSurface.withOpacity(0.35)),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -253,40 +294,240 @@ class _StickyBottomBar extends ConsumerWidget {
       ),
     );
   }
- 
+
   Future<void> _save(BuildContext context, WidgetRef ref) async {
     if (!(formKey.currentState?.validate() ?? false)) return;
 
-    final input   = ref.read(addTransactionProvider);
+    final input = ref.read(addTransactionProvider);
     final saved = await ref.read(transactionSubmitProvider.notifier).submit(
           input,
           editTxId: isEdit ? editTxId : null,
         );
 
     if (saved) {
-      if (context.mounted) Navigator.pop(context);
+      final receiptError = ref.read(receiptSubmitErrorProvider);
+      if (context.mounted && receiptError == null) {
+        Navigator.pop(context);
+      }
     } else if (context.mounted) {
       final error = ref.read(transactionSubmitProvider).error;
       if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:         Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
           backgroundColor: Theme.of(context).colorScheme.error,
-          behavior:        SnackBarBehavior.floating,
+          behavior: SnackBarBehavior.floating,
         ));
       }
     }
   }
 }
- 
+
+class _ReceiptAttachmentCard extends ConsumerWidget {
+  const _ReceiptAttachmentCard({required this.editTxId});
+  final String? editTxId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draft = ref.watch(receiptDraftProvider);
+    final picker = ref.watch(receiptPickerServiceProvider);
+    final remoteAsync = editTxId == null
+        ? null
+        : ref.watch(receiptForTransactionProvider(editTxId!));
+    final existing = draft.existing ?? remoteAsync?.valueOrNull;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.receipt_long_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Foto struk (opsional)',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                if (draft.selectedImage != null || existing != null)
+                  IconButton(
+                    tooltip: 'Hapus foto struk',
+                    onPressed: () =>
+                        ref.read(receiptDraftProvider.notifier).remove(),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+              ],
+            ),
+            if (remoteAsync?.isLoading == true && existing == null)
+              const LinearProgressIndicator(),
+            if (remoteAsync?.hasError == true)
+              Row(
+                children: [
+                  const Expanded(child: Text('Gagal memuat foto struk')),
+                  IconButton(
+                    tooltip: 'Coba lagi',
+                    onPressed: () => ref
+                        .invalidate(receiptForTransactionProvider(editTxId!)),
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+            if (draft.removeExisting)
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.delete_outline),
+                title: Text('Foto akan dihapus saat transaksi disimpan'),
+              )
+            else if (draft.selectedImage != null)
+              _ReceiptPreview(
+                path: draft.selectedImage!.sourcePath,
+                label: 'Foto baru',
+              )
+            else if (existing != null)
+              _ExistingReceiptPreview(receipt: existing),
+            TextButton.icon(
+              onPressed: () => _chooseSource(context, ref, picker),
+              icon: const Icon(Icons.add_a_photo_outlined),
+              label: Text(existing == null && draft.selectedImage == null
+                  ? 'Lampirkan foto struk'
+                  : 'Ganti foto struk'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _chooseSource(
+    BuildContext context,
+    WidgetRef ref,
+    ReceiptPickerService picker,
+  ) async {
+    final source = await showModalBottomSheet<ReceiptImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            if (picker.supportsCamera)
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Kamera'),
+                onTap: () => Navigator.pop(context, ReceiptImageSource.camera),
+              ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Galeri / berkas'),
+              onTap: () => Navigator.pop(context, ReceiptImageSource.library),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    try {
+      final image = await picker.pick(source);
+      if (image != null) ref.read(receiptDraftProvider.notifier).select(image);
+    } on ReceiptCameraPermissionException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error.permanentlyDenied
+            ? 'Izin kamera diblokir. Buka pengaturan untuk mengaktifkannya.'
+            : 'Izin kamera ditolak. Foto struk tetap bisa dipilih dari galeri.'),
+        action: error.permanentlyDenied
+            ? SnackBarAction(
+                label: 'Buka pengaturan',
+                onPressed: () => unawaited(picker.openAppSettings()),
+              )
+            : null,
+      ));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Foto struk tidak dapat dibuka.'),
+      ));
+    }
+  }
+}
+
+class _ExistingReceiptPreview extends ConsumerWidget {
+  const _ExistingReceiptPreview({required this.receipt});
+  final ReceiptAttachment receipt;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stateLabel = switch (receipt.syncState) {
+      ReceiptSyncState.pendingUpload => 'Menunggu sinkronisasi',
+      ReceiptSyncState.uploadError => 'Gagal mengunggah',
+      ReceiptSyncState.pendingDelete => 'Menunggu penghapusan',
+      ReceiptSyncState.deleted => 'Dihapus',
+      ReceiptSyncState.available => 'Foto tersedia',
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (receipt.localPath != null)
+          _ReceiptPreview(path: receipt.localPath!, label: stateLabel)
+        else
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.cloud_download_outlined),
+            title: Text(stateLabel),
+            subtitle: const Text('Foto tersimpan aman di penyimpanan privat'),
+          ),
+        if (receipt.syncState == ReceiptSyncState.uploadError)
+          TextButton.icon(
+            onPressed: () async {
+              await ref.read(receiptStorageSyncServiceProvider).syncPending();
+              ref.invalidate(
+                  receiptForTransactionProvider(receipt.transactionId));
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Coba unggah lagi'),
+          ),
+      ],
+    );
+  }
+}
+
+class _ReceiptPreview extends StatelessWidget {
+  const _ReceiptPreview({required this.path, required this.label});
+  final String path;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(path),
+              width: 72,
+              height: 72,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox(
+                width: 72,
+                height: 72,
+                child: Icon(Icons.image_outlined),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label)),
+        ],
+      );
+}
+
 // ─────────────────────────────────────────────────────────────
 // Header: tanggal, tempat, catatan
 // ─────────────────────────────────────────────────────────────
- 
+
 class _HeaderSection extends StatelessWidget {
-  final TransactionInput       input;
+  final TransactionInput input;
   final AddTransactionNotifier notifier;
   const _HeaderSection({required this.input, required this.notifier});
- 
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -295,33 +536,29 @@ class _HeaderSection extends StatelessWidget {
         InkWell(
           onTap: () async {
             final picked = await showDatePicker(
-              context:     context,
+              context: context,
               initialDate: input.date,
-              firstDate:   DateTime(2020),
-              lastDate:    DateTime.now(),
+              firstDate: DateTime(2020),
+              lastDate: DateTime.now(),
             );
             if (picked != null) notifier.setDate(picked);
           },
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              border:       Border.all(
-                  color: cs.outline.withOpacity(0.5)),
+              border: Border.all(color: cs.outline.withOpacity(0.5)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today,
-                    size: 18, color: cs.primary),
+                Icon(Icons.calendar_today, size: 18, color: cs.primary),
                 const SizedBox(width: 12),
                 Text(TransactionService.formatDate(input.date),
                     style: Theme.of(context).textTheme.bodyMedium),
                 const Spacer(),
                 Icon(Icons.chevron_right,
-                    size: 18,
-                    color: cs.onSurface.withOpacity(0.4)),
+                    size: 18, color: cs.onSurface.withOpacity(0.4)),
               ],
             ),
           ),
@@ -329,34 +566,34 @@ class _HeaderSection extends StatelessWidget {
         const SizedBox(height: 12),
         TextFormField(
           initialValue: input.placeName,
-          onChanged:    notifier.setPlaceName,
-          decoration:   _inputDec(context, 'Tempat (opsional)',
+          onChanged: notifier.setPlaceName,
+          decoration: _inputDec(context, 'Tempat (opsional)',
               icon: Icons.place_outlined),
         ),
         const SizedBox(height: 12),
         TextFormField(
           initialValue: input.notes,
-          onChanged:    notifier.setNotes,
-          maxLines:     2,
-          decoration:   _inputDec(context, 'Catatan (opsional)',
-              icon: Icons.notes),
+          onChanged: notifier.setNotes,
+          maxLines: 2,
+          decoration:
+              _inputDec(context, 'Catatan (opsional)', icon: Icons.notes),
         ),
       ],
     );
   }
 }
- 
+
 // ─────────────────────────────────────────────────────────────
 // Kartu satu item — dengan toggle diskon Rp / %
 // ─────────────────────────────────────────────────────────────
- 
+
 class _ItemCard extends StatefulWidget {
-  final int                              index;
-  final TransactionItemInput             item;
-  final List<Category>                   categories;
+  final int index;
+  final TransactionItemInput item;
+  final List<Category> categories;
   final ValueChanged<TransactionItemInput> onChanged;
-  final VoidCallback?                    onRemove;
- 
+  final VoidCallback? onRemove;
+
   const _ItemCard({
     required this.index,
     required this.item,
@@ -364,21 +601,21 @@ class _ItemCard extends StatefulWidget {
     required this.onChanged,
     this.onRemove,
   });
- 
+
   @override
   State<_ItemCard> createState() => _ItemCardState();
 }
- 
+
 class _ItemCardState extends State<_ItemCard> {
   late TextEditingController _nameCtrl;
   late TextEditingController _priceCtrl;
   late TextEditingController _qtyCtrl;
   late TextEditingController _discCtrl;
- 
+
   @override
   void initState() {
     super.initState();
-    _nameCtrl  = TextEditingController(text: widget.item.name);
+    _nameCtrl = TextEditingController(text: widget.item.name);
     _priceCtrl = TextEditingController(
         text: widget.item.unitPrice > 0
             ? widget.item.unitPrice.toStringAsFixed(0)
@@ -392,7 +629,7 @@ class _ItemCardState extends State<_ItemCard> {
                 .toStringAsFixed(widget.item.discountType == 'percent' ? 1 : 0)
             : '');
   }
- 
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -401,41 +638,41 @@ class _ItemCardState extends State<_ItemCard> {
     _discCtrl.dispose();
     super.dispose();
   }
- 
+
   void _emitBasic() {
     widget.onChanged(widget.item.copyWith(
-      name:          _nameCtrl.text,
-      unitPrice:     double.tryParse(_priceCtrl.text) ?? 0,
-      quantity:      double.tryParse(_qtyCtrl.text) ?? 1,
+      name: _nameCtrl.text,
+      unitPrice: double.tryParse(_priceCtrl.text) ?? 0,
+      quantity: double.tryParse(_qtyCtrl.text) ?? 1,
       discountValue: double.tryParse(_discCtrl.text) ?? 0,
     ));
   }
- 
+
   @override
   Widget build(BuildContext context) {
-    final cs   = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
     final item = widget.item;
- 
+
     final allowedNames = ['Makan', 'Transport', 'Kebutuhan', 'Laundry'];
     final filteredCats = widget.categories
-        .where((c) => allowedNames
-            .any((n) => n.toLowerCase() == c.name.toLowerCase()))
+        .where((c) =>
+            allowedNames.any((n) => n.toLowerCase() == c.name.toLowerCase()))
         .toList()
       ..sort((a, b) =>
-          allowedNames.indexWhere(
-              (n) => n.toLowerCase() == a.name.toLowerCase()) -
-          allowedNames.indexWhere(
-              (n) => n.toLowerCase() == b.name.toLowerCase()));
- 
+          allowedNames
+              .indexWhere((n) => n.toLowerCase() == a.name.toLowerCase()) -
+          allowedNames
+              .indexWhere((n) => n.toLowerCase() == b.name.toLowerCase()));
+
     // Preview diskon dalam Rp untuk ditampilkan
-    final discountRp      = item.discountAmount;
-    final hasDiscount     = discountRp > 0;
-    final grossSubtotal   = item.unitPrice * item.quantity;
- 
+    final discountRp = item.discountAmount;
+    final hasDiscount = discountRp > 0;
+    final grossSubtotal = item.unitPrice * item.quantity;
+
     return Card(
-      margin:    const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
-      shape:     RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
       ),
@@ -448,48 +685,47 @@ class _ItemCardState extends State<_ItemCard> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                   decoration: BoxDecoration(
-                    color:        cs.secondaryContainer,
+                    color: cs.secondaryContainer,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text('Item ${widget.index + 1}',
                       style: TextStyle(
-                          fontSize:   12,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color:      cs.onSecondaryContainer)),
+                          color: cs.onSecondaryContainer)),
                 ),
                 const Spacer(),
                 if (widget.onRemove != null)
                   IconButton(
-                    icon:          Icon(Icons.delete_outline,
-                        size: 20, color: cs.error),
-                    onPressed:     widget.onRemove,
+                    icon: Icon(Icons.delete_outline, size: 20, color: cs.error),
+                    onPressed: widget.onRemove,
                     visualDensity: VisualDensity.compact,
-                    padding:       EdgeInsets.zero,
+                    padding: EdgeInsets.zero,
                   ),
               ],
             ),
             const SizedBox(height: 10),
- 
+
             // Nama barang
             TextFormField(
-              controller:         _nameCtrl,
-              onChanged:          (_) => _emitBasic(),
-              validator:          (value) => value?.trim().isNotEmpty == true
+              key: ValueKey('transaction-item-name-${widget.index}'),
+              controller: _nameCtrl,
+              onChanged: (_) => _emitBasic(),
+              validator: (value) => value?.trim().isNotEmpty == true
                   ? null
                   : 'Nama item wajib diisi.',
-              decoration:         _inputDec(context, 'Nama barang / jasa *'),
+              decoration: _inputDec(context, 'Nama barang / jasa *'),
               textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 10),
- 
+
             // Kategori chips
             Text('Kategori',
                 style: TextStyle(
-                    fontSize: 12,
-                    color:    cs.onSurface.withOpacity(0.6))),
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.6))),
             const SizedBox(height: 6),
             Row(
               children: filteredCats.map((cat) {
@@ -499,12 +735,12 @@ class _ItemCardState extends State<_ItemCard> {
                     padding: const EdgeInsets.only(right: 6),
                     child: GestureDetector(
                       onTap: () => widget.onChanged(item.copyWith(
-                        categoryId:    isSelected ? null : cat.id,
+                        categoryId: isSelected ? null : cat.id,
                         clearCategory: isSelected,
                       )),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
-                        padding:  const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
                           color: isSelected
                               ? _hexToColor(cat.color).withOpacity(0.15)
@@ -520,14 +756,14 @@ class _ItemCardState extends State<_ItemCard> {
                         child: Column(
                           children: [
                             Icon(_iconFromString(cat.icon),
-                                size:  18,
+                                size: 18,
                                 color: isSelected
                                     ? _hexToColor(cat.color)
                                     : cs.onSurface.withOpacity(0.4)),
                             const SizedBox(height: 3),
                             Text(cat.name,
                                 style: TextStyle(
-                                  fontSize:   10,
+                                  fontSize: 10,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.normal,
@@ -545,25 +781,24 @@ class _ItemCardState extends State<_ItemCard> {
               }).toList(),
             ),
             const SizedBox(height: 10),
- 
+
             // Harga satuan + jumlah
             Row(
               children: [
                 Expanded(
                   flex: 3,
                   child: TextFormField(
-                    controller:      _priceCtrl,
-                    onChanged:       (_) => _emitBasic(),
-                    validator:       (value) {
+                    key: ValueKey('transaction-item-price-${widget.index}'),
+                    controller: _priceCtrl,
+                    onChanged: (_) => _emitBasic(),
+                    validator: (value) {
                       final price = double.tryParse(value ?? '');
                       return price != null && price > 0
                           ? null
                           : 'Harga harus lebih dari 0.';
                     },
-                    keyboardType:    TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly
-                    ],
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: _inputDec(context, 'Harga satuan (Rp) *',
                         icon: Icons.payments_outlined),
                   ),
@@ -572,16 +807,16 @@ class _ItemCardState extends State<_ItemCard> {
                 Expanded(
                   flex: 2,
                   child: TextFormField(
-                    controller:   _qtyCtrl,
-                    onChanged:    (_) => _emitBasic(),
-                    validator:    (value) {
+                    controller: _qtyCtrl,
+                    onChanged: (_) => _emitBasic(),
+                    validator: (value) {
                       final quantity = double.tryParse(value ?? '');
                       return quantity != null && quantity > 0
                           ? null
                           : 'Jumlah harus lebih dari 0.';
                     },
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
                           RegExp(r'^\d+\.?\d{0,3}'))
@@ -592,12 +827,11 @@ class _ItemCardState extends State<_ItemCard> {
               ],
             ),
             const SizedBox(height: 10),
- 
+
             // ── Diskon dengan toggle Rp / % ───────────────
             Text('Diskon (opsional)',
                 style: TextStyle(
-                    fontSize: 12,
-                    color:    cs.onSurface.withOpacity(0.6))),
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.6))),
             const SizedBox(height: 6),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,14 +839,14 @@ class _ItemCardState extends State<_ItemCard> {
                 // Toggle Rp / %
                 Container(
                   decoration: BoxDecoration(
-                    color:        cs.surfaceContainerHighest,
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: ['flat', 'percent'].map((type) {
                       final isActive = item.discountType == type;
-                      final label    = type == 'flat' ? 'Rp' : '%';
+                      final label = type == 'flat' ? 'Rp' : '%';
                       return GestureDetector(
                         onTap: () {
                           // Saat ganti tipe, reset nilai diskon ke 0
@@ -620,16 +854,16 @@ class _ItemCardState extends State<_ItemCard> {
                           // Rp 50 tiba-tiba jadi 50%
                           _discCtrl.clear();
                           widget.onChanged(item.copyWith(
-                            discountType:  type,
+                            discountType: type,
                             discountValue: 0,
                           ));
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          padding:  const EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 11),
                           decoration: BoxDecoration(
-                            color:        isActive
+                            color: isActive
                                 ? cs.primaryContainer
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(10),
@@ -638,8 +872,8 @@ class _ItemCardState extends State<_ItemCard> {
                             label,
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              fontSize:   13,
-                              color:      isActive
+                              fontSize: 13,
+                              color: isActive
                                   ? cs.onPrimaryContainer
                                   : cs.onSurface.withOpacity(0.45),
                             ),
@@ -653,10 +887,10 @@ class _ItemCardState extends State<_ItemCard> {
                 // Input nilai diskon
                 Expanded(
                   child: TextFormField(
-                    controller:   _discCtrl,
-                    onChanged:    (_) => _emitBasic(),
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    controller: _discCtrl,
+                    onChanged: (_) => _emitBasic(),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
                           RegExp(r'^\d+\.?\d{0,2}'))
@@ -671,7 +905,7 @@ class _ItemCardState extends State<_ItemCard> {
                 ),
               ],
             ),
- 
+
             // Preview diskon dalam Rp (tampil kalau ada diskon)
             if (hasDiscount)
               Padding(
@@ -685,37 +919,35 @@ class _ItemCardState extends State<_ItemCard> {
                     Text(
                       'Hemat ${TransactionService.formatCurrency(discountRp)}',
                       style: TextStyle(
-                          fontSize:   12,
-                          color:      Colors.green.shade600,
+                          fontSize: 12,
+                          color: Colors.green.shade600,
                           fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
               ),
             const SizedBox(height: 10),
- 
+
             // Subtotal
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color:        cs.primaryContainer.withOpacity(0.4),
+                color: cs.primaryContainer.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   Text('Subtotal',
                       style: TextStyle(
-                          fontSize: 13,
-                          color:    cs.onSurface.withOpacity(0.6))),
+                          fontSize: 13, color: cs.onSurface.withOpacity(0.6))),
                   const Spacer(),
                   // Kalau ada diskon, tampilkan harga coret
                   if (hasDiscount) ...[
                     Text(
                       TransactionService.formatCurrency(grossSubtotal),
                       style: TextStyle(
-                        fontSize:   11,
-                        color:      cs.onSurface.withOpacity(0.35),
+                        fontSize: 11,
+                        color: cs.onSurface.withOpacity(0.35),
                         decoration: TextDecoration.lineThrough,
                       ),
                     ),
@@ -724,9 +956,9 @@ class _ItemCardState extends State<_ItemCard> {
                   Text(
                     TransactionService.formatCurrency(item.subtotal),
                     style: TextStyle(
-                        fontSize:   14,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color:      cs.primary),
+                        color: cs.primary),
                   ),
                 ],
               ),
@@ -737,27 +969,22 @@ class _ItemCardState extends State<_ItemCard> {
     );
   }
 }
- 
+
 // ── Helpers ──────────────────────────────────────────────────
 InputDecoration _inputDec(BuildContext context, String label,
-    {IconData? icon}) =>
+        {IconData? icon}) =>
     InputDecoration(
-      labelText:   label,
-      prefixIcon:  icon != null ? Icon(icon, size: 20) : null,
-      border:      OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10)),
+      labelText: label,
+      prefixIcon: icon != null ? Icon(icon, size: 20) : null,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(
-              color: Theme.of(context)
-                  .colorScheme
-                  .outline
-                  .withOpacity(0.5))),
-      contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14, vertical: 12),
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.5))),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       isDense: true,
     );
- 
+
 Color _hexToColor(String hex) {
   try {
     return Color(int.parse(hex.replaceFirst('#', '0xFF')));
@@ -765,12 +992,12 @@ Color _hexToColor(String hex) {
     return Colors.grey;
   }
 }
- 
+
 IconData _iconFromString(String name) {
   const map = <String, IconData>{
-    'restaurant':            Icons.restaurant,
-    'directions_car':        Icons.directions_car,
-    'shopping_bag':          Icons.shopping_bag,
+    'restaurant': Icons.restaurant,
+    'directions_car': Icons.directions_car,
+    'shopping_bag': Icons.shopping_bag,
     'local_laundry_service': Icons.local_laundry_service,
   };
   return map[name] ?? Icons.category;

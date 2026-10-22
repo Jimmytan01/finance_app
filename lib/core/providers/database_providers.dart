@@ -45,16 +45,20 @@ final syncAwareBudgetServiceProvider = Provider<SyncAwareBudgetService>((ref) {
   );
 });
 
-final syncAwareTransactionServiceProvider = Provider<TransactionService>((ref) {
-    final repository = ref.watch(transactionRepositoryProvider);
-    final userId   = ref.watch(currentUserIdProvider);
-    final deviceId = ref.watch(currentDeviceIdProvider);
-    final sync     = ref.watch(syncNotifierProvider).valueOrNull;
+final syncNowProvider = Provider<Future<void> Function()>((ref) => () async {
+      await ref.read(syncNotifierProvider.notifier).sync();
+    });
 
-    return SyncAwareTransactionService(
-      repository: repository,
-      userId:      userId,
-      deviceId:    deviceId,
-      syncService: sync,
-    );
+final syncAwareTransactionServiceProvider = Provider<TransactionService>((ref) {
+  final repository = ref.watch(transactionRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  final deviceId = ref.watch(currentDeviceIdProvider);
+  final sync = ref.watch(syncNotifierProvider).valueOrNull;
+
+  return SyncAwareTransactionService(
+    repository: repository,
+    userId: userId,
+    deviceId: deviceId,
+    syncService: sync,
+  );
 });

@@ -45,6 +45,9 @@ class ReceiptPickerService {
         _permissions = permissions ?? _PluginReceiptCameraPermissions(),
         _platform = platform ?? defaultTargetPlatform;
 
+  bool get supportsCamera =>
+      _platform == TargetPlatform.android || _platform == TargetPlatform.iOS;
+
   Future<PickedReceiptImage?> pick(ReceiptImageSource source) async {
     if (source == ReceiptImageSource.camera) {
       if (_platform != TargetPlatform.android &&
