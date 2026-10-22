@@ -136,4 +136,12 @@ class BudgetRepository {
       return true;
     });
   }
+
+  Future<void> clearAlertSent(String budgetId, int thresholdPercent) async {
+    await (_db.delete(_db.budgetAlertMarkers)
+          ..where((marker) =>
+              marker.budgetId.equals(budgetId) &
+              marker.thresholdPercent.equals(thresholdPercent)))
+        .go();
+  }
 }
