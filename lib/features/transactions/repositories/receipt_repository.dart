@@ -116,6 +116,66 @@ class ReceiptRepository {
         .toList();
   }
 
+  Future<void> mergeRemote(Map<String, dynamic> data) async {
+    final id = data['id'] as String;
+    final queued = await (_db.select(_db.receiptUploadQueue)
+          ..where((row) => row.receiptId.equals(id)))
+        .getSingleOrNull();
+    if (queued != null) return;
+
+    final existing = await (_db.select(_db.transactionReceipts)
+          ..where((receipt) => receipt.id.equals(id)))
+        .getSingleOrNull();
+    final deleted = data['is_deleted'] as bool? ?? false;
+    final localPath = deleted ? null : existing?.localPath;
+    final values = TransactionReceiptsCompanion(
+      id: Value(id),
+      userId: Value(data['user_id'] as String),
+      transactionId: Value(data['transaction_id'] as String),
+      localPath: Value(localPath),
+      storagePath: Value(data['storage_path'] as String?),
+      mimeType: Value(data['mime_type'] as String?),
+      syncState: Value(
+        (deleted ? ReceiptSyncState.deleted : ReceiptSyncState.available).name,
+      ),
+      isDeleted: Value(deleted),
+      createdAt: Value(DateTime.parse(data['created_at'] as String).toLocal()),
+      updatedAt: Value(DateTime.parse(data['updated_at'] as String).toLocal()),
+    );
+    if (existing == null) {
+      await _db.into(_db.transactionReceipts).insert(values);
+    } else {
+      await (_db.update(_db.transactionReceipts)
+            ..where((receipt) => receipt.id.equals(id)))
+          .write(values);
+    }
+    if (deleted && existing?.localPath != null) {
+      await _deleteFile(existing!.localPath!);
+    }
+  }
+
+  Future<String> cacheDownloaded(String receiptId, Uint8List bytes) async {
+    final receipt = await getById(receiptId);
+    if (receipt == null || receipt.isDeleted || receipt.storagePath == null) {
+      throw StateError('Bukti struk tidak tersedia untuk diunduh.');
+    }
+    final supportDirectory =
+        _supportDirectory ?? await getApplicationSupportDirectory();
+    final cacheDirectory = Directory(p.join(supportDirectory.path, 'receipts'));
+    await cacheDirectory.create(recursive: true);
+    final extension = _safeExtension(receipt.storagePath!);
+    final localPath = p.join(cacheDirectory.path, '$receiptId.$extension');
+    await File(localPath).writeAsBytes(bytes, flush: true);
+    await (_db.update(_db.transactionReceipts)
+          ..where((row) => row.id.equals(receiptId)))
+        .write(TransactionReceiptsCompanion(
+      localPath: Value(localPath),
+      syncState: Value(ReceiptSyncState.available.name),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return localPath;
+  }
+
   Future<void> markUploaded(String receiptId, String storagePath) async {
     await _db.transaction(() async {
       await (_db.update(_db.transactionReceipts)

@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/database_providers.dart';
 import '../sync/sync_service.dart';
+import '../sync/receipt_storage_sync_service.dart';
 import '../../features/budget/providers/budget_alert_providers.dart';
+import '../../features/transactions/repositories/receipt_repository.dart';
 import '../../features/transactions/providers/transaction_providers.dart';
 import 'auth_service.dart';
 
@@ -38,6 +40,8 @@ final currentUserProvider = Provider<User?>((ref) {
 // ─────────────────────────────────────────────────────────────
 
 class SyncNotifier extends AsyncNotifier<SyncService?> {
+  ReceiptStorageSyncService? _receiptSync;
+
   @override
   Future<SyncService?> build() async {
     final user = ref.watch(currentUserProvider);
@@ -56,6 +60,15 @@ class SyncNotifier extends AsyncNotifier<SyncService?> {
       userId: user.id,
       deviceId: deviceId,
     );
+    final receiptSync = ReceiptStorageSyncService(
+      repository: ReceiptRepository(database: db),
+      supabase: supabase,
+      userId: user.id,
+    );
+    _receiptSync = receiptSync;
+    receiptSync.subscribeRealtime(
+      onChanged: () => ref.read(syncTickProvider.notifier).state++,
+    );
 
     service.init();
     service.subscribeRealtime();
@@ -66,7 +79,14 @@ class SyncNotifier extends AsyncNotifier<SyncService?> {
       if (result.status == SyncStatus.success) {
         // Naikan tick → semua FutureProvider yang watch syncTick
         // otomatis di-invalidate dan re-fetch dari SQLite
-        ref.read(syncTickProvider.notifier).state++;
+        unawaited(() async {
+          await receiptSync.syncPending();
+          try {
+            ref.read(syncTickProvider.notifier).state++;
+          } catch (_) {
+            // A sync may finish as the authenticated provider is disposing.
+          }
+        }());
         final now = DateTime.now();
         unawaited(ref.read(budgetAlertServiceProvider).evaluateForMonth(
               userId: user.id,
@@ -80,6 +100,7 @@ class SyncNotifier extends AsyncNotifier<SyncService?> {
       sub.cancel();
       service.unsubscribeRealtime();
       service.dispose();
+      receiptSync.unsubscribeRealtime();
     });
 
     // Sync pertama saat app launch
@@ -104,6 +125,7 @@ class SyncNotifier extends AsyncNotifier<SyncService?> {
     // (sudah di-handle di statusStream listener di atas, tapi
     // kita pastikan lagi di sini kalau ada race condition)
     if (result.status == SyncStatus.success) {
+      await _receiptSync?.syncPending();
       ref.read(syncTickProvider.notifier).state++;
       final user = ref.read(currentUserProvider);
       if (user != null) {
