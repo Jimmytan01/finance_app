@@ -57,6 +57,21 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# MSVC 14.51 rejects C++/WinRT's legacy <experimental/coroutine> header unless
+# this deprecation is explicitly silenced. Keep the workaround scoped to the
+# Windows permission and notification plugins that include it.
+foreach(plugin_target IN ITEMS
+    permission_handler_windows_plugin
+    flutter_local_notifications_windows
+)
+  if(TARGET ${plugin_target})
+    target_compile_definitions(
+      ${plugin_target}
+      PRIVATE _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
+    )
+  endif()
+endforeach()
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can
