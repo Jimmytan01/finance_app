@@ -192,6 +192,40 @@ class SyncQueue extends Table {
   IntColumn get retryCount  => integer().withDefault(const Constant(0))();
 }
 
+class CategoryBudgets extends Table {
+  TextColumn get id          => text().clientDefault(_uuid)();
+  TextColumn get userId      => text()();
+  TextColumn get categoryId  => text()();
+  IntColumn get year         => integer()();
+  IntColumn get month        => integer()();
+  RealColumn get limitAmount => real()();
+  BoolColumn get notificationsEnabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get isDeleted   => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {userId, categoryId, year, month},
+  ];
+}
+
+class BudgetAlertMarkers extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get budgetId => text()();
+  IntColumn get thresholdPercent => integer()();
+  DateTimeColumn get sentAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {budgetId, thresholdPercent},
+  ];
+}
+
 
 // ============================================================
 //  DATABASE
@@ -206,6 +240,8 @@ class SyncQueue extends Table {
   BillItemParticipants,
   Devices,
   SyncQueue,
+  CategoryBudgets,
+  BudgetAlertMarkers,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -214,7 +250,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -223,8 +259,10 @@ class AppDatabase extends _$AppDatabase {
       await _seedDefaultCategories();
     },
     onUpgrade: (m, from, to) async {
-      // Tambahkan migration di sini saat schema berubah
-      // if (from < 2) { await m.addColumn(...); }
+      if (from < 2) {
+        await m.createTable(categoryBudgets);
+        await m.createTable(budgetAlertMarkers);
+      }
     },
   );
 
