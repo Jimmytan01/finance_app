@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../database/app_database.dart';
+import '../logging/app_logger.dart';
 
 // Hanya tabel parent yang punya user_id langsung
 const _parentTables = [
@@ -11,14 +12,6 @@ const _parentTables = [
   'transactions',
   'bill_sessions',
   'category_budgets',
-];
- 
-// Tabel child — tidak punya user_id, perlu pull via parent IDs
-const _childTables = [
-  'transaction_items',
-  'bill_participants',
-  'bill_items',
-  'bill_item_participants',
 ];
  
 enum SyncStatus { idle, syncing, success, error }
@@ -109,6 +102,7 @@ class SyncService {
     if (_isSyncing) return SyncResult.idle();
  
     _isSyncing = true;
+    AppLogger.info('Sync started', scope: 'sync');
     _statusController.add(
         SyncResult(status: SyncStatus.syncing, timestamp: DateTime.now()));
  
@@ -138,11 +132,21 @@ class SyncService {
       );
       _statusController.add(result);
       _isSyncing = false;
+      AppLogger.info(
+        'Sync completed: pushed=$pushed, pulled=$pulled',
+        scope: 'sync',
+      );
       return result;
-    } catch (e) {
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Sync failed',
+        scope: 'sync',
+        error: error,
+        stackTrace: stackTrace,
+      );
       final result = SyncResult(
         status:       SyncStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: error.toString(),
         timestamp:    DateTime.now(),
       );
       _statusController.add(result);
@@ -175,7 +179,13 @@ class SyncService {
  
         await queueDao.deleteById(entry.id);
         successCount++;
-      } catch (e) {
+      } catch (error, stackTrace) {
+        AppLogger.error(
+          'Could not push queued operation to ${entry.targetTable}',
+          scope: 'sync',
+          error: error,
+          stackTrace: stackTrace,
+        );
         await queueDao.incrementRetry(entry.id);
         continue;
       }
@@ -224,7 +234,13 @@ class SyncService {
           await _upsertToLocal(table, row);
           pulledCount++;
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.error(
+          'Could not pull table $table',
+          scope: 'sync',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -272,7 +288,14 @@ class SyncService {
           pulledCount++;
         }
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not pull transaction items',
+        scope: 'sync',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
  
     // ── bill_participants via bill_session IDs ─────────────
     try {
@@ -318,7 +341,14 @@ class SyncService {
           }
         }
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not pull bill child records',
+        scope: 'sync',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
  
     return pulledCount;
   }
@@ -356,7 +386,13 @@ class SyncService {
               .go();
         }
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not reconcile deleted transactions',
+        scope: 'sync',
+        error: error,
+        stackTrace: stackTrace,
+      );
       // Kalau reconcile gagal, skip — tidak kritis, akan dicoba di sync berikutnya
     }
  
@@ -399,7 +435,14 @@ class SyncService {
               .go();
         }
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not reconcile deleted bill sessions',
+        scope: 'sync',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
  
   // ── Initial pull ──────────────────────────────────────────
@@ -444,7 +487,13 @@ class SyncService {
           await _upsertToLocal(table, row);
           pulledCount++;
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.error(
+          'Initial pull failed for table $table',
+          scope: 'sync',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -647,7 +696,13 @@ class SyncService {
                 ),
               );
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not save pulled row in $table',
+        scope: 'sync',
+        error: error,
+        stackTrace: stackTrace,
+      );
       // Skip row yang gagal — akan coba lagi di sync berikutnya
     }
   }
@@ -679,7 +734,11 @@ class SyncService {
     if (value is DateTime) return value;
     try {
       return DateTime.parse(value as String);
-    } catch (_) {
+    } catch (error) {
+      AppLogger.warning(
+        'Could not parse a server date; using current time. $error',
+        scope: 'sync',
+      );
       return DateTime.now();
     }
   }

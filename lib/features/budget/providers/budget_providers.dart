@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/database_providers.dart';
 import '../../../features/transactions/providers/transaction_providers.dart';
 import '../models/budget_models.dart';
@@ -49,7 +50,11 @@ class BudgetListNotifier extends AsyncNotifier<List<BudgetSummary>> {
           permissionGranted = await ref
               .read(budgetNotificationGatewayProvider)
               .requestPermission();
-        } catch (_) {
+        } catch (error) {
+          AppLogger.warning(
+            'Budget notification permission request failed: $error',
+            scope: 'budget',
+          );
           permissionGranted = false;
         }
       }
@@ -78,6 +83,12 @@ class BudgetListNotifier extends AsyncNotifier<List<BudgetSummary>> {
           ));
       return permissionGranted;
     } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not save budget',
+        scope: 'budget',
+        error: error,
+        stackTrace: stackTrace,
+      );
       state = AsyncError<List<BudgetSummary>>(error, stackTrace);
       rethrow;
     }
@@ -96,6 +107,12 @@ class BudgetListNotifier extends AsyncNotifier<List<BudgetSummary>> {
           .read(budgetRepositoryProvider)
           .getForMonth(userId, month.year, month.month));
     } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not delete budget',
+        scope: 'budget',
+        error: error,
+        stackTrace: stackTrace,
+      );
       state = AsyncError<List<BudgetSummary>>(error, stackTrace);
       rethrow;
     }

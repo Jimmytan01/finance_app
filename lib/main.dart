@@ -1,11 +1,13 @@
-// Entry point aplikasi. Setup Riverpod + tema + routing.
+// Entry point aplikasi. Setup logging, Riverpod + tema + routing.
+import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/env/env.dart';
+import 'core/logging/app_logger.dart';
 import 'core/auth/auth_providers.dart';
-import 'core/auth/auth_service.dart';
-import 'core/sync/sync_aware_service.dart';
 import 'core/providers/database_providers.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/bill/screens/bill_list_screen.dart';
@@ -16,8 +18,44 @@ import 'features/transactions/providers/transaction_providers.dart';
 import 'features/transactions/screens/transaction_list_screen.dart';
  
 Future<void> main() async {
+  await runZonedGuarded<Future<void>>(
+    _startApplication,
+    (error, stackTrace) {
+      AppLogger.error(
+        'Uncaught asynchronous exception',
+        scope: 'runtime',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    },
+  );
+}
+
+Future<void> _startApplication() async {
   WidgetsFlutterBinding.ensureInitialized();
- 
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    AppLogger.error(
+      'Flutter framework exception',
+      scope: 'runtime',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    AppLogger.error(
+      'Unhandled platform exception',
+      scope: 'runtime',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return false;
+  };
+
+  await AppLogger.initialize();
+  AppLogger.info('Application starting', scope: 'lifecycle');
+
   // Supabase harus di-init sebelum runApp karena banyak provider
   // yang bergantung pada Supabase.instance.client
   await Supabase.initialize(
@@ -28,7 +66,7 @@ Future<void> main() async {
       authFlowType: AuthFlowType.pkce,
     ),
   );
- 
+
   runApp(
     ProviderScope(
       overrides: [
@@ -39,7 +77,7 @@ Future<void> main() async {
           // tetap bisa jalan dalam mode offline-only
           return user?.id ?? 'local-user-offline';
         }),
- 
+
         // Override deviceId dari hardcode ke DB
         currentDeviceIdProvider.overrideWith((ref) {
           // deviceId dibaca async, tapi provider ini sync.
@@ -48,7 +86,7 @@ Future<void> main() async {
           // Solusi yang lebih proper: pakai FutureProvider untuk deviceId.
           return 'pending-device-id';
         }),
- 
+
         // Override transactionService ke versi yang sync-aware
         transactionServiceProvider.overrideWith((ref) {
           return ref.watch(syncAwareTransactionServiceProvider);
@@ -57,6 +95,7 @@ Future<void> main() async {
       child: const FinanceApp(),
     ),
   );
+  AppLogger.info('Application started', scope: 'lifecycle');
 }
  
 class FinanceApp extends StatelessWidget {

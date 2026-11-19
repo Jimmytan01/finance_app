@@ -3,8 +3,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/auth/auth_providers.dart';
-import '../../../core/auth/auth_service.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/database_providers.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../../features/transactions/providers/transaction_providers.dart';
@@ -65,6 +66,12 @@ class SettingsScreen extends ConsumerWidget {
                 color:    Theme.of(context).colorScheme.secondary,
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+
+          const _SettingsSection(
+            title: 'Dukungan',
+            tiles: [_ExportLogsTile()],
           ),
           const SizedBox(height: 24),
  
@@ -140,7 +147,13 @@ class SettingsScreen extends ConsumerWidget {
           behavior:        SnackBarBehavior.floating,
         ));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Could not repair local transaction totals',
+        scope: 'settings',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -469,12 +482,14 @@ class _SettingsTile extends StatelessWidget {
   final String       title, subtitle;
   final VoidCallback? onTap;
   final Color?       color;
+  final bool         isLoading;
   const _SettingsTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     this.onTap,
     this.color,
+    this.isLoading = false,
   });
  
   @override
@@ -488,13 +503,112 @@ class _SettingsTile extends StatelessWidget {
       subtitle: Text(subtitle,
           style: TextStyle(
               fontSize: 12, color: cs.onSurface.withOpacity(0.45))),
-      trailing: onTap != null
-          ? Icon(Icons.chevron_right,
-              size: 16, color: cs.onSurface.withOpacity(0.3))
-          : null,
-      onTap: onTap,
+      trailing: isLoading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : onTap != null
+              ? Icon(Icons.chevron_right,
+                  size: 16, color: cs.onSurface.withOpacity(0.3))
+              : null,
+      onTap: isLoading ? null : onTap,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12)),
+    );
+  }
+}
+
+class _ExportLogsTile extends StatefulWidget {
+  const _ExportLogsTile();
+
+  @override
+  State<_ExportLogsTile> createState() => _ExportLogsTileState();
+}
+
+class _ExportLogsTileState extends State<_ExportLogsTile> {
+  bool _isExporting = false;
+
+  Future<void> _exportLogs() async {
+    if (_isExporting) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bagikan log aplikasi?'),
+        content: const Text(
+          'File berisi waktu dan detail teknis error. Periksa tujuan berbagi '
+          'dan kirim hanya kepada orang yang membantu menangani masalah.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Lanjutkan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isExporting = true);
+    try {
+      AppLogger.info('User requested a log export', scope: 'logging');
+      final exportFile = await AppLogger.createExportFile();
+      if (!mounted) return;
+      final renderObject = context.findRenderObject();
+      final renderBox = renderObject is RenderBox ? renderObject : null;
+      final sharePositionOrigin = renderBox == null
+          ? null
+          : renderBox.localToGlobal(Offset.zero) & renderBox.size;
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(exportFile.path)],
+          title: 'Log Finansialku',
+          subject: 'Log aplikasi Finansialku',
+          sharePositionOrigin: sharePositionOrigin,
+        ),
+      );
+
+      if (!mounted) return;
+      final message = switch (result.status) {
+        ShareResultStatus.success => 'Log berhasil dibagikan.',
+        ShareResultStatus.dismissed => 'Berbagi log dibatalkan.',
+        ShareResultStatus.unavailable =>
+          'Menu berbagi ditutup. Jika log belum terkirim, coba lagi.',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not export application logs',
+        scope: 'logging',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Log gagal disiapkan. Coba lagi.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsTile(
+      icon: Icons.bug_report_outlined,
+      title: _isExporting ? 'Menyiapkan log...' : 'Ekspor log aplikasi',
+      subtitle: 'Bagikan file log untuk membantu melacak masalah',
+      onTap: _exportLogs,
+      isLoading: _isExporting,
     );
   }
 }

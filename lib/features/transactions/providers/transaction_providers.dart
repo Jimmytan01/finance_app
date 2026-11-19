@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../budget/providers/budget_alert_providers.dart';
 import '../../../core/providers/database_providers.dart';
 import '../repositories/transaction_repository.dart';
@@ -197,7 +198,13 @@ class TransactionSubmitNotifier extends AsyncNotifier<void> {
         try {
           await _applyReceiptDraft(transactionId, receiptDraft);
           _pendingReceiptTransactionId = null;
-        } catch (error) {
+        } catch (error, stackTrace) {
+          AppLogger.error(
+            'Transaction saved, but receipt attachment failed',
+            scope: 'receipt',
+            error: error,
+            stackTrace: stackTrace,
+          );
           ref.read(receiptSubmitErrorProvider.notifier).state =
               'Transaksi tersimpan, tetapi foto struk belum tersimpan. Coba ulang lampiran.';
           ref.invalidate(receiptForTransactionProvider(transactionId));
@@ -215,6 +222,12 @@ class TransactionSubmitNotifier extends AsyncNotifier<void> {
       state = const AsyncData<void>(null);
       return true;
     } catch (error, stackTrace) {
+      AppLogger.error(
+        'Could not save transaction',
+        scope: 'transactions',
+        error: error,
+        stackTrace: stackTrace,
+      );
       state = AsyncError<void>(error, stackTrace);
       return false;
     }

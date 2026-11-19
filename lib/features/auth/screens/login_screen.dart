@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/auth/auth_providers.dart';
-import '../../../core/auth/auth_service.dart';
+import '../../../core/logging/app_logger.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -258,7 +258,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       }
     } on AuthException catch (e) {
       if (mounted) _showError(_friendlyAuthError(e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Authentication request failed unexpectedly',
+        scope: 'auth',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) _showError('Terjadi kesalahan: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
