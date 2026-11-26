@@ -708,21 +708,59 @@ class SyncService {
   }
  
   Future<void> _clearLocalUserData() async {
-  await _db.transaction(() async {
-    await _db.delete(_db.transactionItems).go();
-    await _db.delete(_db.transactions).go();
-    await _db.delete(_db.billItemParticipants).go();
-    await _db.delete(_db.billItems).go();
-    await _db.delete(_db.billParticipants).go();
-    await _db.delete(_db.billSessions).go();
-    await _db.delete(_db.categories).go();
-    await (_db.delete(_db.categoryBudgets)
-          ..where((budget) => budget.userId.equals(_userId)))
-        .go();
-    await _db.delete(_db.syncQueue).go();
-  });
-}
- 
+    await _db.transaction(() async {
+      final transactions = await (_db.select(_db.transactions)
+            ..where((row) => row.userId.equals(_userId)))
+          .get();
+      final transactionIds = transactions.map((row) => row.id).toList();
+
+      final sessions = await (_db.select(_db.billSessions)
+            ..where((row) => row.userId.equals(_userId)))
+          .get();
+      final sessionIds = sessions.map((row) => row.id).toList();
+
+      final billItems = sessionIds.isEmpty
+          ? <BillItem>[]
+          : await (_db.select(_db.billItems)
+                ..where((row) => row.billSessionId.isIn(sessionIds)))
+              .get();
+      final billItemIds = billItems.map((row) => row.id).toList();
+
+      if (transactionIds.isNotEmpty) {
+        await (_db.delete(_db.transactionItems)
+              ..where((row) => row.transactionId.isIn(transactionIds)))
+            .go();
+        await (_db.delete(_db.transactions)
+              ..where((row) => row.id.isIn(transactionIds)))
+            .go();
+      }
+
+      if (sessionIds.isNotEmpty) {
+        if (billItemIds.isNotEmpty) {
+          await (_db.delete(_db.billItemParticipants)
+                ..where((row) => row.billItemId.isIn(billItemIds)))
+              .go();
+        }
+        await (_db.delete(_db.billItems)
+              ..where((row) => row.billSessionId.isIn(sessionIds)))
+            .go();
+        await (_db.delete(_db.billParticipants)
+              ..where((row) => row.billSessionId.isIn(sessionIds)))
+            .go();
+        await (_db.delete(_db.billSessions)
+              ..where((row) => row.id.isIn(sessionIds)))
+            .go();
+      }
+
+      await (_db.delete(_db.categoryBudgets)
+            ..where((row) => row.userId.equals(_userId)))
+          .go();
+      await (_db.delete(_db.categories)
+            ..where((row) => row.userId.equals(_userId)))
+          .go();
+    });
+  }
+
   Future<void> _updateLastSyncAt() async {
     await (_db.update(_db.devices)
           ..where((d) => d.id.equals(_deviceId)))

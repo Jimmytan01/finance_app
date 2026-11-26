@@ -220,16 +220,19 @@ class TransactionService {
  
   // ── Format helpers ───────────────────────────────────────
   static String formatCurrency(double amount) {
-    final parts =
-        amount.toStringAsFixed(0).split('').reversed.toList();
+    final rounded = amount.toStringAsFixed(0);
+    final isNegative = rounded.startsWith('-');
+    final digits = isNegative ? rounded.substring(1) : rounded;
+    final parts = digits.split('').reversed.toList();
     final buffer = StringBuffer();
     for (var i = 0; i < parts.length; i++) {
       if (i > 0 && i % 3 == 0) buffer.write('.');
       buffer.write(parts[i]);
     }
-    return 'Rp ${buffer.toString().split('').reversed.join()}';
+    final formattedDigits = buffer.toString().split('').reversed.join();
+    return 'Rp ${isNegative ? '-' : ''}$formattedDigits';
   }
- 
+
   static String formatDate(DateTime date) {
     const months = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
